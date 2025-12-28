@@ -9,20 +9,9 @@ This template is based on examples from OpenAI's official Apps SDK Examples repo
 
 The widget examples (carousel, gallery, dashboard, todo, shop, etc.) and React hooks for `window.openai` integration are adapted from that repository. Thank you to the OpenAI team for providing these excellent examples.
 
-## Screenshots
+## Demo
 
-<p align="center">
-  <img src="images/0.png" width="45%" alt="Card Widget" />
-  <img src="images/3.png" width="45%" alt="Dashboard Widget" />
-</p>
-<p align="center">
-  <img src="images/1.png" width="45%" alt="Carousel & List Widgets" />
-  <img src="images/2.png" width="45%" alt="Gallery Widget" />
-</p>
-<p align="center">
-  <img src="images/4.png" width="45%" alt="Solar System & Todo Widgets" />
-  <img src="images/6.png" width="45%" alt="Shopping Cart Widget" />
-</p>
+https://github.com/user-attachments/assets/f5877544-0dce-4c31-979e-50b5533f9a16
 
 ## Using This Template
 
