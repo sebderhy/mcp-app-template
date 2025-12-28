@@ -665,6 +665,14 @@ try:
 except Exception:
     pass
 
+# Serve static assets (widget JS/CSS bundles)
+try:
+    from starlette.staticfiles import StaticFiles
+    if ASSETS_DIR.exists():
+        app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
+except Exception:
+    pass
+
 
 # =============================================================================
 # MAIN
@@ -674,16 +682,15 @@ if __name__ == "__main__":
     import uvicorn
 
     print("\n" + "=" * 60)
-    print("ChatGPT App Boilerplate - MCP Server")
+    print("ChatGPT App Template - MCP Server")
     print("=" * 60)
     print("\nAvailable widgets:")
     for w in WIDGETS:
         print(f"  - {w.identifier}: {w.description[:50]}...")
-    print("\nMake sure to:")
-    print("1. Run `pnpm run build` to build widgets")
-    print("2. Run `pnpm run serve` to serve assets")
+    print("\nMake sure to run `pnpm run build` to build widgets first.")
     print("\nServer: http://0.0.0.0:8000")
     print("MCP endpoint: http://0.0.0.0:8000/mcp")
+    print("Assets: http://0.0.0.0:8000/assets/")
     print("=" * 60 + "\n")
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

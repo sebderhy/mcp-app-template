@@ -23,11 +23,8 @@ ChatGPT → MCP Tool Call → Python Server → structuredContent + widget HTML
 # Build widgets (required before running server)
 pnpm run build
 
-# Serve widget assets (required for MCP server)
-pnpm run serve
-
-# Start Python MCP server
-cd server && uvicorn main:app --port 8000 --reload
+# Start Python MCP server (also serves widget assets)
+pnpm run server
 
 # Local development with hot reload
 pnpm run dev

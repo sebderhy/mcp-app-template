@@ -2,6 +2,13 @@
 
 A comprehensive template for building ChatGPT Apps using the Apps SDK with MCP (Model Context Protocol) servers.
 
+## Acknowledgments
+
+This template is based on examples from OpenAI's official Apps SDK Examples repository:
+**https://github.com/openai/openai-apps-sdk-examples**
+
+The widget examples (carousel, gallery, dashboard, todo, shop, etc.) and React hooks for `window.openai` integration are adapted from that repository. Thank you to the OpenAI team for providing these excellent examples.
+
 ## Using This Template
 
 Click the **"Use this template"** button on GitHub, or clone and remove the git history:
@@ -57,30 +64,15 @@ pnpm run build
 
 This creates hashed assets in the `assets/` directory.
 
-### 3. Serve the Widget Assets
-
-```bash
-pnpm run serve
-```
-
-This serves the built assets on http://localhost:4444 with CORS enabled.
-
-### 4. Start the MCP Server
-
-In a new terminal:
-
-```bash
-cd server
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Or use the npm script:
+### 3. Start the MCP Server
 
 ```bash
 pnpm run server
 ```
 
-### 5. Test in ChatGPT
+This starts the server on http://localhost:8000 and serves both the MCP endpoint and widget assets.
+
+### 4. Test in ChatGPT
 
 1. Enable [Developer Mode](https://platform.openai.com/docs/guides/developer-mode) in ChatGPT
 2. Expose your MCP server with ngrok:
