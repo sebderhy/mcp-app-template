@@ -1,0 +1,56 @@
+import { useCallback, useEffect, useState, type SetStateAction } from "react";
+import { useOpenAiGlobal } from "./use-openai-global";
+import type { UnknownObject } from "./types";
+
+/**
+ * React hook for persisting widget state on the ChatGPT host.
+ * State survives tool calls and is restored when the widget re-renders.
+ *
+ * @example
+ * const [state, setState] = useWidgetState({ count: 0, selectedId: null });
+ *
+ * // Update state (automatically syncs to host)
+ * setState(prev => ({ ...prev, count: prev.count + 1 }));
+ */
+export function useWidgetState<T extends UnknownObject>(
+  defaultState: T | (() => T)
+): readonly [T, (state: SetStateAction<T>) => void];
+export function useWidgetState<T extends UnknownObject>(
+  defaultState?: T | (() => T | null) | null
+): readonly [T | null, (state: SetStateAction<T | null>) => void];
+export function useWidgetState<T extends UnknownObject>(
+  defaultState?: T | (() => T | null) | null
+): readonly [T | null, (state: SetStateAction<T | null>) => void] {
+  const widgetStateFromWindow = useOpenAiGlobal("widgetState") as T;
+
+  const [widgetState, _setWidgetState] = useState<T | null>(() => {
+    if (widgetStateFromWindow != null) {
+      return widgetStateFromWindow;
+    }
+
+    return typeof defaultState === "function"
+      ? defaultState()
+      : defaultState ?? null;
+  });
+
+  useEffect(() => {
+    _setWidgetState(widgetStateFromWindow);
+  }, [widgetStateFromWindow]);
+
+  const setWidgetState = useCallback(
+    (state: SetStateAction<T | null>) => {
+      _setWidgetState((prevState) => {
+        const newState = typeof state === "function" ? state(prevState) : state;
+
+        if (newState != null) {
+          window.openai.setWidgetState(newState);
+        }
+
+        return newState;
+      });
+    },
+    [window.openai.setWidgetState]
+  );
+
+  return [widgetState, setWidgetState] as const;
+}

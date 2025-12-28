@@ -1,0 +1,57 @@
+{
+  "name": "chatgpt-app-template",
+  "version": "1.0.0",
+  "description": "Boilerplate for building ChatGPT Apps with MCP server and React widgets",
+  "main": "src/boilerplate/index.tsx",
+  "type": "module",
+  "scripts": {
+    "build": "tsx ./build-all.mts",
+    "serve": "serve -s ./assets -p 4444 --cors",
+    "dev": "vite --config vite.config.mts",
+    "tsc": "tsc -b",
+    "tsc:app": "tsc -p tsconfig.app.json",
+    "tsc:node": "tsc -p tsconfig.node.json",
+    "server": "cd server && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+  },
+  "keywords": [
+    "chatgpt",
+    "mcp",
+    "apps-sdk",
+    "openai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.24.0",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/node": "^24.3.0",
+    "@types/react-datepicker": "^7.0.0",
+    "@types/three": "^0.182.0",
+    "@vitejs/plugin-react": "^4.5.2",
+    "autoprefixer": "10.4.21",
+    "fast-glob": "^3.3.3",
+    "postcss": "8.5.6",
+    "serve": "^14.2.4",
+    "tailwindcss": "4.1.11",
+    "tsx": "^4.20.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.1"
+  },
+  "dependencies": {
+    "@openai/apps-sdk-ui": "^0.2.1",
+    "@react-spring/three": "^10.0.3",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
+    "@react-three/postprocessing": "^3.0.4",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.536.0",
+    "react": "^19.1.1",
+    "react-datepicker": "^9.0.0",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.10.1",
+    "three": "^0.182.0"
+  }
+}

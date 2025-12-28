@@ -1,0 +1,307 @@
+# ChatGPT App Template
+
+A comprehensive template for building ChatGPT Apps using the Apps SDK with MCP (Model Context Protocol) servers.
+
+## Using This Template
+
+Click the **"Use this template"** button on GitHub, or clone and remove the git history:
+
+```bash
+git clone https://github.com/YOUR_USERNAME/chatgpt-app-template.git my-chatgpt-app
+cd my-chatgpt-app
+rm -rf .git
+git init
+```
+
+## Overview
+
+This repository provides everything you need to build ChatGPT Apps:
+
+- **React Widget** - TypeScript/React UI that renders inside ChatGPT
+- **Python MCP Server** - FastAPI-based server that handles tool calls
+- **Apps SDK UI Components** - Pre-styled components that match ChatGPT's design system
+- **React Hooks** - Utilities for interacting with the ChatGPT host
+
+## Architecture
+
+```
+User Prompt → ChatGPT Model → MCP Tool Call → Your Server → Tool Response
+                                                              ↓
+                                               structuredContent + _meta
+                                                              ↓
+                                               Widget renders in ChatGPT
+                                               (reads window.openai.toolOutput)
+```
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+# Install Node.js dependencies
+pnpm install
+
+# Create Python virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install Python dependencies
+pip install -r server/requirements.txt
+```
+
+### 2. Build the Widget
+
+```bash
+pnpm run build
+```
+
+This creates hashed assets in the `assets/` directory.
+
+### 3. Serve the Widget Assets
+
+```bash
+pnpm run serve
+```
+
+This serves the built assets on http://localhost:4444 with CORS enabled.
+
+### 4. Start the MCP Server
+
+In a new terminal:
+
+```bash
+cd server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Or use the npm script:
+
+```bash
+pnpm run server
+```
+
+### 5. Test in ChatGPT
+
+1. Enable [Developer Mode](https://platform.openai.com/docs/guides/developer-mode) in ChatGPT
+2. Expose your MCP server with ngrok:
+   ```bash
+   ngrok http 8000 --host-header=rewrite
+   ```
+3. In ChatGPT Settings → Connectors, add a new connector with your ngrok URL + `/mcp`
+4. In a chat, add the connector and try: "Show me the boilerplate widget"
+
+## Included Widget Examples
+
+This template includes several widget examples to help you get started:
+
+| Widget | Description |
+|--------|-------------|
+| `boilerplate` | Basic interactive card with state management |
+| `carousel` | Horizontal scrolling cards (restaurants, products) |
+| `list` | Vertical list with thumbnails and rankings |
+| `gallery` | Image grid with lightbox viewer |
+| `dashboard` | Stats, metrics, and activity feed |
+| `solar-system` | Interactive 3D visualization (Three.js) |
+| `todo` | Multi-list task manager with drag-and-drop |
+| `shop` | E-commerce cart with checkout flow |
+
+Try them by asking ChatGPT: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
+
+## Project Structure
+
+```
+├── src/                          # Widget source code
+│   ├── boilerplate/              # Example widget
+│   │   ├── index.tsx             # Entry point (mounts React app)
+│   │   └── App.tsx               # Main component
+│   ├── types.ts                  # TypeScript types for window.openai
+│   ├── use-openai-global.ts      # Hook to read window.openai properties
+│   ├── use-widget-state.ts       # Hook for persisted widget state
+│   ├── use-widget-props.ts       # Hook to read tool output
+│   ├── use-display-mode.ts       # Hook for display mode
+│   ├── use-max-height.ts         # Hook for height constraints
+│   ├── use-theme.ts              # Hook for light/dark theme
+│   └── index.css                 # Global styles + Tailwind
+│
+├── server/                       # Python MCP server
+│   ├── main.py                   # Server implementation
+│   └── requirements.txt          # Python dependencies
+│
+├── assets/                       # Built widget bundles (generated)
+│
+├── package.json                  # Node.js dependencies
+├── vite.config.mts               # Vite dev server config
+├── build-all.mts                 # Production build script
+├── tailwind.config.ts            # Tailwind configuration
+└── tsconfig.json                 # TypeScript configuration
+```
+
+## Development
+
+### Local Development (Hot Reload)
+
+```bash
+pnpm run dev
+```
+
+This starts a Vite dev server on http://localhost:4444 with hot module replacement.
+
+### Adding a New Widget
+
+1. Create a new directory in `src/`:
+   ```
+   src/my-widget/
+   ├── index.tsx
+   └── App.tsx
+   ```
+
+2. Add the widget name to `build-all.mts`:
+   ```typescript
+   const targets: string[] = [
+     "boilerplate",
+     "my-widget",  // Add your widget here
+   ];
+   ```
+
+3. Add corresponding tools in `server/main.py`
+
+4. Build and test:
+   ```bash
+   pnpm run build
+   ```
+
+## Key Concepts
+
+### Tool Output (structuredContent)
+
+Your MCP server returns `structuredContent` which becomes `window.openai.toolOutput` in the widget:
+
+```python
+# Server (Python)
+return types.CallToolResult(
+    content=[types.TextContent(type="text", text="Widget ready")],
+    structuredContent={
+        "title": "My Widget",
+        "items": [...]
+    },
+    _meta=get_invocation_meta(widget),
+)
+```
+
+```tsx
+// Widget (React)
+const { title, items } = useWidgetProps({ title: "", items: [] });
+```
+
+### Widget State
+
+Persist state on the ChatGPT host (survives tool calls):
+
+```tsx
+const [state, setState] = useWidgetState({ count: 0 });
+
+// Update state (automatically syncs to host)
+setState(prev => ({ ...prev, count: prev.count + 1 }));
+```
+
+### Display Modes
+
+Request different display modes:
+
+```tsx
+const displayMode = useDisplayMode(); // "inline" | "fullscreen" | "pip"
+
+// Request fullscreen
+await window.openai.requestDisplayMode({ mode: "fullscreen" });
+```
+
+### Calling Tools from Widget
+
+Call other MCP tools from your widget:
+
+```tsx
+const result = await window.openai.callTool("my_tool", { arg: "value" });
+```
+
+### Theme Support
+
+Adapt to ChatGPT's theme:
+
+```tsx
+const theme = useTheme(); // "light" | "dark"
+```
+
+## Tool Metadata
+
+Key `_meta` fields for tools:
+
+| Field | Purpose |
+|-------|---------|
+| `openai/outputTemplate` | Links tool to widget HTML |
+| `openai/toolInvocation/invoking` | Loading message |
+| `openai/toolInvocation/invoked` | Completion message |
+| `openai/widgetAccessible` | Allow widget to call other tools |
+| `openai/resultCanProduceWidget` | Tool can render a widget |
+| `openai/visibility` | Set to "private" to hide from model |
+
+## Deployment
+
+### Production Build
+
+```bash
+BASE_URL=https://your-cdn.com pnpm run build
+```
+
+### Deploy MCP Server
+
+Deploy to any platform that supports Python/FastAPI:
+- Fly.io
+- Render
+- Railway
+- Google Cloud Run
+- AWS Lambda + API Gateway
+
+Ensure your server:
+- Serves on HTTPS
+- Has `/mcp` endpoint accessible
+- Supports SSE streaming
+
+## Troubleshooting
+
+### Widget doesn't render
+
+1. Check that `pnpm run build` completed successfully
+2. Verify `pnpm run serve` is running
+3. Check browser console for errors
+4. Ensure `mimeType: "text/html+skybridge"` in resource registration
+
+### Python server caching
+
+The server uses `@lru_cache` for widget HTML. Restart the server after rebuilding widgets:
+
+```bash
+# Kill and restart the server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### CORS errors
+
+Ensure both the asset server and MCP server have CORS enabled. The boilerplate includes CORS middleware by default.
+
+### ngrok issues
+
+Use the `--host-header=rewrite` flag:
+
+```bash
+ngrok http 8000 --host-header=rewrite
+```
+
+## Resources
+
+- [Apps SDK Documentation](https://developers.openai.com/apps-sdk)
+- [MCP Protocol](https://modelcontextprotocol.io/)
+- [Apps SDK UI Components](https://openai.github.io/apps-sdk-ui/)
+
+## License
+
+MIT

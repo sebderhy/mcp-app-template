@@ -1,0 +1,689 @@
+"""
+ChatGPT App Boilerplate - Python MCP Server
+
+This server provides multiple widget templates:
+- Boilerplate: Basic interactive widget
+- Carousel: Horizontal scrolling cards
+- List: Vertical list with thumbnails
+- Gallery: Image grid with lightbox
+- Dashboard: Stats and metrics display
+- Solar System: Interactive 3D solar system
+- Todo: Multi-list todo manager
+- Shop: E-commerce cart with checkout
+
+Run with: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+"""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import mcp.types as types
+from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+@dataclass(frozen=True)
+class Widget:
+    """Configuration for a widget that can be rendered in ChatGPT."""
+    identifier: str
+    title: str
+    description: str
+    template_uri: str
+    invoking: str
+    invoked: str
+    html: str
+
+
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+MIME_TYPE = "text/html+skybridge"
+
+
+# =============================================================================
+# WIDGET HTML LOADING
+# =============================================================================
+
+@lru_cache(maxsize=None)
+def load_widget_html(component_name: str) -> str:
+    """Load the built widget HTML from the assets directory."""
+    html_path = ASSETS_DIR / f"{component_name}.html"
+    if html_path.exists():
+        return html_path.read_text(encoding="utf8")
+
+    fallback_candidates = sorted(ASSETS_DIR.glob(f"{component_name}-*.html"))
+    if fallback_candidates:
+        return fallback_candidates[-1].read_text(encoding="utf8")
+
+    raise FileNotFoundError(
+        f'Widget HTML for "{component_name}" not found in {ASSETS_DIR}. '
+        "Run `pnpm run build` from the repo root to generate the assets."
+    )
+
+
+# =============================================================================
+# WIDGET DEFINITIONS
+# =============================================================================
+
+def create_widgets() -> List[Widget]:
+    """Create all widget configurations."""
+    return [
+        Widget(
+            identifier="show_card",
+            title="Show Card Widget",
+            description="Display an interactive card widget with items. Use this for simple interactive displays.",
+            template_uri="ui://widget/boilerplate.html",
+            invoking="Loading card widget...",
+            invoked="Card widget ready",
+            html=load_widget_html("boilerplate"),
+        ),
+        Widget(
+            identifier="show_carousel",
+            title="Show Carousel",
+            description="Display a horizontal carousel of cards. Perfect for showcasing places, products, or recommendations.",
+            template_uri="ui://widget/carousel.html",
+            invoking="Loading carousel...",
+            invoked="Carousel ready",
+            html=load_widget_html("carousel"),
+        ),
+        Widget(
+            identifier="show_list",
+            title="Show List",
+            description="Display a vertical list with thumbnails. Great for rankings, search results, or task lists.",
+            template_uri="ui://widget/list.html",
+            invoking="Loading list...",
+            invoked="List ready",
+            html=load_widget_html("list"),
+        ),
+        Widget(
+            identifier="show_gallery",
+            title="Show Gallery",
+            description="Display an image gallery with lightbox. Perfect for photo albums or visual showcases.",
+            template_uri="ui://widget/gallery.html",
+            invoking="Loading gallery...",
+            invoked="Gallery ready",
+            html=load_widget_html("gallery"),
+        ),
+        Widget(
+            identifier="show_dashboard",
+            title="Show Dashboard",
+            description="Display a dashboard with stats and metrics. Ideal for analytics, KPIs, or account overviews.",
+            template_uri="ui://widget/dashboard.html",
+            invoking="Loading dashboard...",
+            invoked="Dashboard ready",
+            html=load_widget_html("dashboard"),
+        ),
+        Widget(
+            identifier="show_solar_system",
+            title="Show Solar System",
+            description="Display an interactive 3D solar system. Click on planets to learn about them. Great for educational content.",
+            template_uri="ui://widget/solar-system.html",
+            invoking="Loading solar system...",
+            invoked="Solar system ready",
+            html=load_widget_html("solar-system"),
+        ),
+        Widget(
+            identifier="show_todo",
+            title="Show Todo List",
+            description="Display an interactive todo list with multiple lists, drag-and-drop reordering, and due dates.",
+            template_uri="ui://widget/todo.html",
+            invoking="Loading todo list...",
+            invoked="Todo list ready",
+            html=load_widget_html("todo"),
+        ),
+        Widget(
+            identifier="show_shop",
+            title="Show Shopping Cart",
+            description="Display a shopping cart with products, quantities, and checkout flow. Perfect for e-commerce.",
+            template_uri="ui://widget/shop.html",
+            invoking="Loading shopping cart...",
+            invoked="Shopping cart ready",
+            html=load_widget_html("shop"),
+        ),
+    ]
+
+
+# Initialize widgets (lazy loading to handle missing assets gracefully)
+try:
+    WIDGETS = create_widgets()
+except FileNotFoundError as e:
+    print(f"Warning: {e}")
+    print("Some widgets may not be available. Run `pnpm run build` first.")
+    WIDGETS = []
+
+WIDGETS_BY_ID: Dict[str, Widget] = {w.identifier: w for w in WIDGETS}
+WIDGETS_BY_URI: Dict[str, Widget] = {w.template_uri: w for w in WIDGETS}
+
+
+# =============================================================================
+# INPUT SCHEMAS
+# =============================================================================
+
+class CardInput(BaseModel):
+    """Input for card widget."""
+    title: str = Field(default="Card Widget", description="Widget title")
+    message: str = Field(default="Hello from the server!", description="Main message")
+    accent_color: str = Field(default="#2563eb", alias="accentColor", description="Accent color (hex)")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class CarouselInput(BaseModel):
+    """Input for carousel widget."""
+    title: str = Field(default="Recommendations", description="Carousel title")
+    category: str = Field(default="restaurants", description="Category of items to show")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class ListInput(BaseModel):
+    """Input for list widget."""
+    title: str = Field(default="Top Picks", description="List title")
+    subtitle: str = Field(default="Curated recommendations", description="List subtitle")
+    category: str = Field(default="restaurants", description="Category of items")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class GalleryInput(BaseModel):
+    """Input for gallery widget."""
+    title: str = Field(default="Photo Gallery", description="Gallery title")
+    category: str = Field(default="nature", description="Category of images")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class DashboardInput(BaseModel):
+    """Input for dashboard widget."""
+    title: str = Field(default="Dashboard", description="Dashboard title")
+    period: str = Field(default="Last 30 days", description="Time period")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class SolarSystemInput(BaseModel):
+    """Input for solar system widget."""
+    planet_name: Optional[str] = Field(default=None, description="Planet to focus on (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune)")
+    title: str = Field(default="Solar System Explorer", description="Widget title")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class TodoInput(BaseModel):
+    """Input for todo widget."""
+    title: str = Field(default="My Tasks", description="Main title")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class ShopInput(BaseModel):
+    """Input for shop widget."""
+    title: str = Field(default="Your Cart", description="Cart title")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+# =============================================================================
+# SAMPLE DATA
+# =============================================================================
+
+SAMPLE_CAROUSEL_ITEMS = [
+    {"id": "1", "title": "Golden Gate Bistro", "subtitle": "Modern American", "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop", "rating": 4.8, "location": "San Francisco", "price": "$$$", "badge": "Popular"},
+    {"id": "2", "title": "Marina Bay Kitchen", "subtitle": "Fresh seafood", "image": "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=400&h=300&fit=crop", "rating": 4.6, "location": "Oakland", "price": "$$"},
+    {"id": "3", "title": "Sunset Terrace", "subtitle": "Rooftop dining", "image": "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop", "rating": 4.9, "location": "Berkeley", "price": "$$$$", "badge": "New"},
+    {"id": "4", "title": "The Local Table", "subtitle": "Farm-to-table", "image": "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=400&h=300&fit=crop", "rating": 4.5, "location": "Palo Alto", "price": "$$"},
+    {"id": "5", "title": "Urban Spice", "subtitle": "Indian fusion", "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop", "rating": 4.7, "location": "San Jose", "price": "$$"},
+]
+
+SAMPLE_LIST_ITEMS = [
+    {"id": "1", "title": "The Modern Kitchen", "subtitle": "Contemporary American", "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=100&h=100&fit=crop", "rating": 4.9, "meta": "San Francisco", "badge": "#1"},
+    {"id": "2", "title": "Bella Italia", "subtitle": "Authentic Italian", "image": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&h=100&fit=crop", "rating": 4.8, "meta": "Oakland", "badge": "#2"},
+    {"id": "3", "title": "Sakura Japanese", "subtitle": "Sushi & Izakaya", "image": "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=100&h=100&fit=crop", "rating": 4.7, "meta": "Berkeley", "badge": "#3"},
+    {"id": "4", "title": "Taco Loco", "subtitle": "Mexican Street Food", "image": "https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=100&h=100&fit=crop", "rating": 4.6, "meta": "San Jose"},
+    {"id": "5", "title": "Golden Dragon", "subtitle": "Cantonese Cuisine", "image": "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=100&h=100&fit=crop", "rating": 4.5, "meta": "Palo Alto"},
+]
+
+SAMPLE_GALLERY_IMAGES = [
+    {"id": "1", "src": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop", "title": "Mountain Sunrise", "description": "Alps at dawn", "author": "John Doe"},
+    {"id": "2", "src": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&h=300&fit=crop", "title": "Forest Path", "description": "Sunlit forest", "author": "Jane Smith"},
+    {"id": "3", "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=300&fit=crop", "title": "Tropical Beach", "description": "Crystal waters", "author": "Mike Johnson"},
+    {"id": "4", "src": "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=300&fit=crop", "title": "Starry Night", "description": "Milky Way", "author": "Sarah Wilson"},
+    {"id": "5", "src": "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=400&h=300&fit=crop", "title": "Ocean Waves", "description": "Crashing waves", "author": "Tom Brown"},
+    {"id": "6", "src": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop", "thumbnail": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=300&fit=crop", "title": "Misty Forest", "description": "Morning fog", "author": "Emily Davis"},
+]
+
+SAMPLE_DASHBOARD_STATS = [
+    {"id": "revenue", "label": "Total Revenue", "value": "$45,231.89", "change": 20.1, "changeLabel": "from last month", "icon": "dollar"},
+    {"id": "users", "label": "Active Users", "value": "2,350", "change": 15.3, "changeLabel": "from last month", "icon": "users"},
+    {"id": "orders", "label": "Orders", "value": "1,247", "change": -5.2, "changeLabel": "from last month", "icon": "cart"},
+    {"id": "views", "label": "Page Views", "value": "573,921", "change": 12.5, "changeLabel": "from last month", "icon": "eye"},
+]
+
+SAMPLE_ACTIVITIES = [
+    {"id": "1", "title": "New user registered", "description": "john.doe@example.com signed up", "time": "2 min ago", "type": "success"},
+    {"id": "2", "title": "Order completed", "description": "Order #12345 fulfilled", "time": "15 min ago", "type": "info"},
+    {"id": "3", "title": "Payment failed", "description": "$99.00 declined", "time": "1 hour ago", "type": "error"},
+    {"id": "4", "title": "Low stock alert", "description": "SKU-789 running low", "time": "3 hours ago", "type": "warning"},
+]
+
+SAMPLE_TODO_LISTS = [
+    {
+        "id": "work",
+        "title": "Work Tasks",
+        "isCurrentlyOpen": True,
+        "todos": [
+            {"id": "1", "title": "Review pull requests", "isComplete": False, "note": "Check the new feature branch"},
+            {"id": "2", "title": "Update documentation", "isComplete": True},
+            {"id": "3", "title": "Team standup meeting", "isComplete": False, "dueDate": "2025-01-15"},
+        ],
+    },
+    {
+        "id": "personal",
+        "title": "Personal",
+        "todos": [
+            {"id": "4", "title": "Buy groceries", "isComplete": False},
+            {"id": "5", "title": "Call mom", "isComplete": False, "dueDate": "2025-01-14"},
+        ],
+    },
+    {
+        "id": "shopping",
+        "title": "Shopping List",
+        "todos": [
+            {"id": "6", "title": "Milk", "isComplete": False},
+            {"id": "7", "title": "Bread", "isComplete": True},
+            {"id": "8", "title": "Eggs", "isComplete": False},
+        ],
+    },
+]
+
+SAMPLE_CART_ITEMS = [
+    {
+        "id": "marys-chicken",
+        "name": "Mary's Chicken",
+        "price": 19.48,
+        "description": "Tender organic chicken breasts trimmed for easy cooking.",
+        "shortDescription": "Organic chicken breasts",
+        "detailSummary": "4 lbs - $3.99/lb",
+        "quantity": 2,
+        "image": "https://persistent.oaistatic.com/pizzaz-cart-xl/chicken.png",
+        "tags": ["size"],
+    },
+    {
+        "id": "avocados",
+        "name": "Avocados",
+        "price": 1.00,
+        "description": "Creamy Hass avocados picked at peak ripeness.",
+        "shortDescription": "Creamy Hass avocados",
+        "quantity": 2,
+        "image": "https://persistent.oaistatic.com/pizzaz-cart-xl/avocado.png",
+        "tags": ["vegan"],
+    },
+    {
+        "id": "hojicha-pizza",
+        "name": "Hojicha Pizza",
+        "price": 15.50,
+        "description": "Wood-fired crust with smoky hojicha tea sauce and honey.",
+        "shortDescription": "Smoky hojicha sauce & honey",
+        "quantity": 1,
+        "image": "https://persistent.oaistatic.com/pizzaz-cart-xl/hojicha-pizza.png",
+        "tags": ["vegetarian", "spicy"],
+    },
+    {
+        "id": "chicken-pizza",
+        "name": "Chicken Pizza",
+        "price": 7.00,
+        "description": "Classic thin-crust pizza with roasted chicken and herb pesto.",
+        "shortDescription": "Roasted chicken & pesto",
+        "quantity": 1,
+        "image": "https://persistent.oaistatic.com/pizzaz-cart-xl/chicken-pizza.png",
+        "tags": [],
+    },
+    {
+        "id": "matcha-pizza",
+        "name": "Matcha Pizza",
+        "price": 5.00,
+        "description": "Crisp dough with velvety matcha cream and mascarpone.",
+        "shortDescription": "Velvety matcha cream",
+        "quantity": 1,
+        "image": "https://persistent.oaistatic.com/pizzaz-cart-xl/matcha-pizza.png",
+        "tags": ["vegetarian"],
+    },
+]
+
+
+# =============================================================================
+# MCP SERVER SETUP
+# =============================================================================
+
+mcp = FastMCP(name="boilerplate-server", stateless_http=True)
+
+
+def get_tool_meta(widget: Widget) -> Dict[str, Any]:
+    return {
+        "openai/outputTemplate": widget.template_uri,
+        "openai/toolInvocation/invoking": widget.invoking,
+        "openai/toolInvocation/invoked": widget.invoked,
+        "openai/widgetAccessible": True,
+        "openai/resultCanProduceWidget": True,
+    }
+
+
+def get_invocation_meta(widget: Widget) -> Dict[str, Any]:
+    return {
+        "openai/toolInvocation/invoking": widget.invoking,
+        "openai/toolInvocation/invoked": widget.invoked,
+    }
+
+
+# =============================================================================
+# TOOL REGISTRATION
+# =============================================================================
+
+@mcp._mcp_server.list_tools()
+async def list_tools() -> List[types.Tool]:
+    tools = []
+
+    for widget in WIDGETS:
+        schema = {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Widget title"},
+            },
+            "additionalProperties": True,
+        }
+
+        tools.append(types.Tool(
+            name=widget.identifier,
+            title=widget.title,
+            description=widget.description,
+            inputSchema=schema,
+            _meta=get_tool_meta(widget),
+            annotations={
+                "destructiveHint": False,
+                "openWorldHint": False,
+                "readOnlyHint": True,
+            },
+        ))
+
+    return tools
+
+
+# =============================================================================
+# RESOURCE REGISTRATION
+# =============================================================================
+
+@mcp._mcp_server.list_resources()
+async def list_resources() -> List[types.Resource]:
+    return [
+        types.Resource(
+            name=widget.title,
+            title=widget.title,
+            uri=widget.template_uri,
+            description=f"{widget.title} widget markup",
+            mimeType=MIME_TYPE,
+            _meta=get_tool_meta(widget),
+        )
+        for widget in WIDGETS
+    ]
+
+
+@mcp._mcp_server.list_resource_templates()
+async def list_resource_templates() -> List[types.ResourceTemplate]:
+    return [
+        types.ResourceTemplate(
+            name=widget.title,
+            title=widget.title,
+            uriTemplate=widget.template_uri,
+            description=f"{widget.title} widget markup",
+            mimeType=MIME_TYPE,
+            _meta=get_tool_meta(widget),
+        )
+        for widget in WIDGETS
+    ]
+
+
+# =============================================================================
+# REQUEST HANDLERS
+# =============================================================================
+
+async def handle_read_resource(req: types.ReadResourceRequest) -> types.ServerResult:
+    widget = WIDGETS_BY_URI.get(str(req.params.uri))
+    if widget is None:
+        return types.ServerResult(types.ReadResourceResult(contents=[], _meta={"error": f"Unknown resource: {req.params.uri}"}))
+
+    return types.ServerResult(types.ReadResourceResult(contents=[
+        types.TextResourceContents(uri=widget.template_uri, mimeType=MIME_TYPE, text=widget.html, _meta=get_tool_meta(widget))
+    ]))
+
+
+async def handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
+    tool_name = req.params.name
+    arguments = req.params.arguments or {}
+
+    widget = WIDGETS_BY_ID.get(tool_name)
+    if not widget:
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=f"Unknown tool: {tool_name}")],
+            isError=True,
+        ))
+
+    # Route to appropriate handler based on tool name
+    if tool_name == "show_card":
+        return await handle_card(widget, arguments)
+    elif tool_name == "show_carousel":
+        return await handle_carousel(widget, arguments)
+    elif tool_name == "show_list":
+        return await handle_list(widget, arguments)
+    elif tool_name == "show_gallery":
+        return await handle_gallery(widget, arguments)
+    elif tool_name == "show_dashboard":
+        return await handle_dashboard(widget, arguments)
+    elif tool_name == "show_solar_system":
+        return await handle_solar_system(widget, arguments)
+    elif tool_name == "show_todo":
+        return await handle_todo(widget, arguments)
+    elif tool_name == "show_shop":
+        return await handle_shop(widget, arguments)
+    else:
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=f"No handler for: {tool_name}")],
+            isError=True,
+        ))
+
+
+async def handle_card(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = CardInput.model_validate(arguments)
+    except ValidationError as e:
+        payload = CardInput()
+
+    structured_content = {
+        "title": payload.title,
+        "message": payload.message,
+        "accentColor": payload.accent_color,
+        "items": [
+            {"id": "1", "name": "First Item", "description": "Sample item description"},
+            {"id": "2", "name": "Second Item", "description": "Another sample item"},
+            {"id": "3", "name": "Third Item", "description": "One more item"},
+        ],
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Card widget: {payload.title}")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_carousel(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = CarouselInput.model_validate(arguments)
+    except ValidationError:
+        payload = CarouselInput()
+
+    structured_content = {
+        "title": payload.title,
+        "items": SAMPLE_CAROUSEL_ITEMS,
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Carousel: {payload.title} ({len(SAMPLE_CAROUSEL_ITEMS)} items)")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_list(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = ListInput.model_validate(arguments)
+    except ValidationError:
+        payload = ListInput()
+
+    structured_content = {
+        "title": payload.title,
+        "subtitle": payload.subtitle,
+        "headerImage": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=200&h=200&fit=crop",
+        "actionLabel": "Save List",
+        "items": SAMPLE_LIST_ITEMS,
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"List: {payload.title} ({len(SAMPLE_LIST_ITEMS)} items)")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_gallery(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = GalleryInput.model_validate(arguments)
+    except ValidationError:
+        payload = GalleryInput()
+
+    structured_content = {
+        "title": payload.title,
+        "images": SAMPLE_GALLERY_IMAGES,
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Gallery: {payload.title} ({len(SAMPLE_GALLERY_IMAGES)} photos)")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_dashboard(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = DashboardInput.model_validate(arguments)
+    except ValidationError:
+        payload = DashboardInput()
+
+    structured_content = {
+        "title": payload.title,
+        "subtitle": "Your key metrics at a glance",
+        "period": payload.period,
+        "stats": SAMPLE_DASHBOARD_STATS,
+        "activities": SAMPLE_ACTIVITIES,
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Dashboard: {payload.title}")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_solar_system(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = SolarSystemInput.model_validate(arguments)
+    except ValidationError:
+        payload = SolarSystemInput()
+
+    structured_content = {
+        "title": payload.title,
+        "planet_name": payload.planet_name,
+    }
+
+    planet_msg = f" (focusing on {payload.planet_name})" if payload.planet_name else ""
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Solar System{planet_msg}")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_todo(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = TodoInput.model_validate(arguments)
+    except ValidationError:
+        payload = TodoInput()
+
+    structured_content = {
+        "lists": deepcopy(SAMPLE_TODO_LISTS),
+    }
+
+    total_todos = sum(len(lst["todos"]) for lst in SAMPLE_TODO_LISTS)
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Todo: {len(SAMPLE_TODO_LISTS)} lists, {total_todos} items")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_shop(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = ShopInput.model_validate(arguments)
+    except ValidationError:
+        payload = ShopInput()
+
+    structured_content = {
+        "title": payload.title,
+        "cartItems": deepcopy(SAMPLE_CART_ITEMS),
+    }
+
+    total_items = sum(item["quantity"] for item in SAMPLE_CART_ITEMS)
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Shopping Cart: {total_items} items")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+# Register handlers
+mcp._mcp_server.request_handlers[types.CallToolRequest] = handle_call_tool
+mcp._mcp_server.request_handlers[types.ReadResourceRequest] = handle_read_resource
+
+
+# =============================================================================
+# HTTP APP SETUP
+# =============================================================================
+
+app = mcp.streamable_http_app()
+
+try:
+    from starlette.middleware.cors import CORSMiddleware
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"], allow_credentials=False)
+except Exception:
+    pass
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+
+    print("\n" + "=" * 60)
+    print("ChatGPT App Boilerplate - MCP Server")
+    print("=" * 60)
+    print("\nAvailable widgets:")
+    for w in WIDGETS:
+        print(f"  - {w.identifier}: {w.description[:50]}...")
+    print("\nMake sure to:")
+    print("1. Run `pnpm run build` to build widgets")
+    print("2. Run `pnpm run serve` to serve assets")
+    print("\nServer: http://0.0.0.0:8000")
+    print("MCP endpoint: http://0.0.0.0:8000/mcp")
+    print("=" * 60 + "\n")
+
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
