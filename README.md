@@ -121,7 +121,14 @@ Try them by asking ChatGPT: *"Show me the carousel"*, *"Show me the dashboard"*,
 │
 ├── server/                       # Python MCP server
 │   ├── main.py                   # Server implementation
-│   └── requirements.txt          # Python dependencies
+│   ├── requirements.txt          # Python dependencies
+│   ├── requirements-dev.txt      # Test dependencies
+│   └── tests/                    # Server test suite
+│       ├── test_input_validation.py
+│       ├── test_tool_handlers.py
+│       ├── test_widget_loading.py
+│       ├── test_mcp_endpoints.py
+│       └── test_openai_compliance.py
 │
 ├── assets/                       # Built widget bundles (generated)
 │
@@ -131,6 +138,50 @@ Try them by asking ChatGPT: *"Show me the carousel"*, *"Show me the dashboard"*,
 ├── tailwind.config.ts            # Tailwind configuration
 └── tsconfig.json                 # TypeScript configuration
 ```
+
+## Testing
+
+This template includes a comprehensive test suite to verify your server works correctly **before** testing in ChatGPT. This saves time by catching issues locally instead of going through the tedious connect-to-ChatGPT cycle.
+
+### Quick Start
+
+```bash
+# Install test dependencies
+pip install -r server/requirements-dev.txt
+
+# Run all tests
+pnpm run test
+
+# Run tests with coverage report
+pnpm run test:cov
+```
+
+### What the Tests Verify
+
+| Test File | What It Checks |
+|-----------|----------------|
+| `test_input_validation.py` | Pydantic models accept valid inputs, use defaults, reject unknown fields |
+| `test_tool_handlers.py` | Handlers return correct `structuredContent` structure, custom inputs pass through |
+| `test_widget_loading.py` | Widget HTML loads from assets, fallback to hashed filenames works |
+| `test_mcp_endpoints.py` | MCP protocol (list_tools, list_resources, call_tool) works correctly |
+| `test_openai_compliance.py` | Responses comply with OpenAI Apps SDK format requirements |
+
+### Why This Matters
+
+The tests are **infrastructure-focused**, not business-logic-focused. This means:
+
+- **You don't need to modify tests** when customizing widgets or changing sample data
+- Tests verify the *shape* of responses (e.g., `structuredContent` has `title` and `items`)
+- Tests verify OpenAI format compliance (correct MIME types, required metadata fields)
+
+### Recommended Workflow
+
+1. Modify your widgets and handlers in `server/main.py`
+2. Run `pnpm run build` to build widget assets
+3. Run `pnpm run test` to verify everything works
+4. If tests pass → connect to ChatGPT for final manual testing
+
+This catches most issues before the slow manual testing phase.
 
 ## Development
 

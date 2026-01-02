@@ -11,7 +11,9 @@
     "tsc": "tsc -b",
     "tsc:app": "tsc -p tsconfig.app.json",
     "tsc:node": "tsc -p tsconfig.node.json",
-    "server": "cd server && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    "server": "cd server && uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "test": "cd server && python -m pytest",
+    "test:cov": "cd server && python -m pytest --cov=. --cov-report=term-missing"
   },
   "keywords": [
     "chatgpt",
