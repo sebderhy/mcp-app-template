@@ -1,0 +1,309 @@
+/**
+ * Build Output Tests - Infrastructure tests for widget build artifacts.
+ *
+ * These tests verify that `pnpm run build` produces the expected output
+ * without assuming anything about widget business logic.
+ *
+ * Key requirements verified:
+ * 1. Build produces JS, CSS, and HTML files for each widget
+ * 2. HTML files have correct structure (root div, script/link tags)
+ * 3. Asset hashing works correctly
+ * 4. File naming conventions are followed
+ *
+ * NOTE: These tests require a build to have been run first.
+ * Run `pnpm run build` before running these tests.
+ */
+
+import { describe, it, expect, beforeAll } from "vitest";
+import fs from "fs";
+import path from "path";
+
+const assetsDir = path.resolve("assets");
+
+// Read the targets array from build-all.mts to stay in sync
+function getWidgetTargets(): string[] {
+  const buildScript = fs.readFileSync(
+    path.resolve("build-all.mts"),
+    "utf-8"
+  );
+  const match = buildScript.match(/const targets:\s*string\[\]\s*=\s*\[([\s\S]*?)\]/);
+  if (!match) {
+    throw new Error("Could not find targets array in build-all.mts");
+  }
+  return match[1]
+    .split(",")
+    .map((s) => s.trim().replace(/["']/g, ""))
+    .filter((s) => s.length > 0);
+}
+
+const widgets = getWidgetTargets();
+
+// Check if build has been run
+const buildExists = fs.existsSync(assetsDir) && fs.readdirSync(assetsDir).length > 0;
+
+describe("Build Output", () => {
+  beforeAll(() => {
+    if (!buildExists) {
+      console.warn(
+        "\n⚠️  Assets directory is empty or missing. Run 'pnpm run build' first.\n"
+      );
+    }
+  });
+
+  describe("assets directory", () => {
+    it("assets directory exists", () => {
+      expect(fs.existsSync(assetsDir)).toBe(true);
+    });
+
+    it.skipIf(!buildExists)("assets directory is not empty", () => {
+      const files = fs.readdirSync(assetsDir);
+      expect(files.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe.skipIf(!buildExists)("widget output files", () => {
+    it.each(widgets)("widget '%s' has HTML file", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      expect(fs.existsSync(htmlPath)).toBe(true);
+    });
+
+    it.each(widgets)("widget '%s' has hashed HTML file", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const hashedHtml = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".html")
+      );
+      expect(hashedHtml).toBeDefined();
+    });
+
+    it.each(widgets)("widget '%s' has hashed JS file", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const hashedJs = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".js")
+      );
+      expect(hashedJs).toBeDefined();
+    });
+
+    it.each(widgets)("widget '%s' has hashed CSS file", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const hashedCss = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".css")
+      );
+      expect(hashedCss).toBeDefined();
+    });
+  });
+
+  describe.skipIf(!buildExists)("file naming conventions", () => {
+    it("all hashed files use same hash", () => {
+      const files = fs.readdirSync(assetsDir);
+      const hashes = new Set<string>();
+
+      for (const file of files) {
+        // Match pattern: name-hash.ext
+        const match = file.match(/^[a-z-]+-([a-f0-9]+)\.(js|css|html)$/);
+        if (match) {
+          hashes.add(match[1]);
+        }
+      }
+
+      // All hashed files should use the same hash
+      expect(hashes.size).toBe(1);
+    });
+
+    it("hash is 4 characters", () => {
+      const files = fs.readdirSync(assetsDir);
+      const hashedFile = files.find((f) => /^[a-z-]+-[a-f0-9]+\.js$/.test(f));
+
+      if (hashedFile) {
+        const match = hashedFile.match(/-([a-f0-9]+)\.js$/);
+        expect(match?.[1].length).toBe(4);
+      }
+    });
+  });
+
+  describe.skipIf(!buildExists)("JS bundle content", () => {
+    it.each(widgets)("widget '%s' JS is valid ES module", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const jsFile = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".js")
+      );
+
+      if (jsFile) {
+        const content = fs.readFileSync(path.join(assetsDir, jsFile), "utf-8");
+        // ES modules typically have import/export statements or use strict
+        // At minimum, should be non-empty JavaScript
+        expect(content.length).toBeGreaterThan(0);
+      }
+    });
+
+    it.each(widgets)("widget '%s' JS includes React", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const jsFile = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".js")
+      );
+
+      if (jsFile) {
+        const content = fs.readFileSync(path.join(assetsDir, jsFile), "utf-8");
+        // React bundles typically include jsx-runtime or createElement
+        expect(
+          content.includes("jsx") ||
+            content.includes("createElement") ||
+            content.includes("React")
+        ).toBe(true);
+      }
+    });
+  });
+
+  describe.skipIf(!buildExists)("CSS bundle content", () => {
+    it.each(widgets)("widget '%s' CSS is non-empty", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const cssFile = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".css")
+      );
+
+      if (cssFile) {
+        const content = fs.readFileSync(path.join(assetsDir, cssFile), "utf-8");
+        expect(content.length).toBeGreaterThan(0);
+      }
+    });
+
+    it.each(widgets)("widget '%s' CSS contains styles", (widget) => {
+      const files = fs.readdirSync(assetsDir);
+      const cssFile = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".css")
+      );
+
+      if (cssFile) {
+        const content = fs.readFileSync(path.join(assetsDir, cssFile), "utf-8");
+        // CSS should have at least one rule with { }
+        expect(content).toMatch(/\{[\s\S]*?\}/);
+      }
+    });
+  });
+});
+
+describe.skipIf(!buildExists)("HTML Structure Compliance", () => {
+  describe("HTML file structure", () => {
+    it.each(widgets)("widget '%s' HTML has doctype", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      expect(content.toLowerCase()).toMatch(/<!doctype html>/i);
+    });
+
+    it.each(widgets)("widget '%s' HTML has html tag", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      expect(content).toMatch(/<html[\s>]/i);
+      expect(content).toMatch(/<\/html>/i);
+    });
+
+    it.each(widgets)("widget '%s' HTML has head and body", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      expect(content).toMatch(/<head[\s>]/i);
+      expect(content).toMatch(/<\/head>/i);
+      expect(content).toMatch(/<body[\s>]/i);
+      expect(content).toMatch(/<\/body>/i);
+    });
+  });
+
+  describe("required elements", () => {
+    it.each(widgets)("widget '%s' HTML has root div", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      // Should have div with id="${widget}-root"
+      const expectedId = `${widget}-root`;
+      expect(content).toContain(`id="${expectedId}"`);
+    });
+
+    it.each(widgets)("widget '%s' HTML has script tag", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      // Should have ES module script tag
+      expect(content).toMatch(/<script\s+type="module"/i);
+    });
+
+    it.each(widgets)("widget '%s' HTML has stylesheet link", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      // Should have stylesheet link
+      expect(content).toMatch(/<link\s+rel="stylesheet"/i);
+    });
+
+    it.each(widgets)(
+      "widget '%s' HTML script points to hashed JS",
+      (widget) => {
+        const htmlPath = path.join(assetsDir, `${widget}.html`);
+        const content = fs.readFileSync(htmlPath, "utf-8");
+
+        // Script src should include widget name and hash
+        const pattern = new RegExp(`${widget}-[a-f0-9]+\\.js`);
+        expect(content).toMatch(pattern);
+      }
+    );
+
+    it.each(widgets)(
+      "widget '%s' HTML stylesheet points to hashed CSS",
+      (widget) => {
+        const htmlPath = path.join(assetsDir, `${widget}.html`);
+        const content = fs.readFileSync(htmlPath, "utf-8");
+
+        // Stylesheet href should include widget name and hash
+        const pattern = new RegExp(`${widget}-[a-f0-9]+\\.css`);
+        expect(content).toMatch(pattern);
+      }
+    );
+  });
+
+  describe("asset URLs", () => {
+    it.each(widgets)("widget '%s' HTML uses configured BASE_URL", (widget) => {
+      const htmlPath = path.join(assetsDir, `${widget}.html`);
+      const content = fs.readFileSync(htmlPath, "utf-8");
+
+      // Should have a full URL in script/link tags (not relative)
+      // Default is http://localhost:8000/assets or custom BASE_URL
+      expect(content).toMatch(/src="https?:\/\//);
+      expect(content).toMatch(/href="https?:\/\//);
+    });
+  });
+});
+
+describe.skipIf(!buildExists)("Build Consistency", () => {
+  it("live HTML and hashed HTML have same content", () => {
+    for (const widget of widgets) {
+      const liveHtmlPath = path.join(assetsDir, `${widget}.html`);
+      const files = fs.readdirSync(assetsDir);
+      const hashedHtmlFile = files.find(
+        (f) => f.startsWith(`${widget}-`) && f.endsWith(".html")
+      );
+
+      if (hashedHtmlFile) {
+        const liveContent = fs.readFileSync(liveHtmlPath, "utf-8");
+        const hashedContent = fs.readFileSync(
+          path.join(assetsDir, hashedHtmlFile),
+          "utf-8"
+        );
+
+        expect(liveContent).toBe(hashedContent);
+      }
+    }
+  });
+
+  it("all widgets have same number of output files (4 each)", () => {
+    const files = fs.readdirSync(assetsDir);
+
+    for (const widget of widgets) {
+      const widgetFiles = files.filter(
+        (f) => f.startsWith(widget) && (f.startsWith(`${widget}-`) || f === `${widget}.html`)
+      );
+
+      // Each widget should have: .html, -hash.html, -hash.js, -hash.css
+      expect(widgetFiles.length).toBe(4);
+    }
+  });
+});

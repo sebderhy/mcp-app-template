@@ -141,22 +141,30 @@ Try them by asking ChatGPT: *"Show me the carousel"*, *"Show me the dashboard"*,
 
 ## Testing
 
-This template includes a comprehensive test suite to verify your server works correctly **before** testing in ChatGPT. This saves time by catching issues locally instead of going through the tedious connect-to-ChatGPT cycle.
+This template includes a comprehensive test suite (417 tests) to verify your app works correctly **before** testing in ChatGPT. This saves time by catching issues locally instead of going through the tedious connect-to-ChatGPT cycle.
 
 ### Quick Start
 
 ```bash
-# Install test dependencies
+# Install all dependencies
+pnpm install
 pip install -r server/requirements-dev.txt
 
-# Run all tests
+# Run all tests (server + UI)
 pnpm run test
 
-# Run tests with coverage report
+# Run tests with coverage
 pnpm run test:cov
+
+# Run only server tests
+pnpm run test:server
+
+# Run only UI tests
+pnpm run test:ui
+pnpm run test:ui:watch  # Watch mode for development
 ```
 
-### What the Tests Verify
+### Server Tests (Python)
 
 | Test File | What It Checks |
 |-----------|----------------|
@@ -166,6 +174,15 @@ pnpm run test:cov
 | `test_mcp_endpoints.py` | MCP protocol (list_tools, list_resources, call_tool) works correctly |
 | `test_openai_compliance.py` | Responses comply with OpenAI Apps SDK format requirements |
 
+### UI Tests (Vitest)
+
+| Test File | What It Checks |
+|-----------|----------------|
+| `widget-structure.test.ts` | Widget entry points use correct patterns (createRoot, App import, root element ID) |
+| `hooks.test.tsx` | React hooks correctly read from and sync with `window.openai` |
+| `build-output.test.ts` | Build produces expected JS/CSS/HTML files with correct structure |
+| `openai-types.test.ts` | TypeScript types cover all required OpenAI globals and APIs |
+
 ### Why This Matters
 
 The tests are **infrastructure-focused**, not business-logic-focused. This means:
@@ -173,10 +190,11 @@ The tests are **infrastructure-focused**, not business-logic-focused. This means
 - **You don't need to modify tests** when customizing widgets or changing sample data
 - Tests verify the *shape* of responses (e.g., `structuredContent` has `title` and `items`)
 - Tests verify OpenAI format compliance (correct MIME types, required metadata fields)
+- Tests verify widget structure patterns (entry points, hooks, build output)
 
 ### Recommended Workflow
 
-1. Modify your widgets and handlers in `server/main.py`
+1. Modify your widgets in `src/` and handlers in `server/main.py`
 2. Run `pnpm run build` to build widget assets
 3. Run `pnpm run test` to verify everything works
 4. If tests pass → connect to ChatGPT for final manual testing

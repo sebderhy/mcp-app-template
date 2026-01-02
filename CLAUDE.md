@@ -57,22 +57,34 @@ pnpm run dev
 
 ## Testing
 
-**IMPORTANT: Always run tests after modifying server code.**
+**IMPORTANT: Always run tests after modifying code (server or UI).**
 
 ```bash
-# Run all tests
+# Run all tests (server + UI) - 417 tests total
 pnpm run test
+
+# Run only server tests
+pnpm run test:server
+
+# Run only UI tests
+pnpm run test:ui
 
 # Run tests with coverage
 pnpm run test:cov
 ```
 
-The test suite verifies:
+### Server Tests (Python - `server/tests/`)
 - **Input validation** - Pydantic models work correctly
 - **Tool handlers** - Return correct `structuredContent` structure
 - **Widget loading** - HTML loads from assets directory
 - **MCP protocol** - list_tools, list_resources, call_tool work
 - **OpenAI compliance** - Responses match OpenAI Apps SDK format requirements
+
+### UI Tests (Vitest - `tests/`)
+- **Widget structure** - Entry points use createRoot, import App, target correct root element
+- **React hooks** - Hooks read from and sync with `window.openai`
+- **Build output** - Build produces correct JS/CSS/HTML with proper structure
+- **OpenAI types** - TypeScript types cover all required globals and APIs
 
 ### When to Run Tests
 
@@ -80,14 +92,16 @@ Run `pnpm run test` after:
 1. Modifying any handler in `server/main.py`
 2. Adding or changing Pydantic input models
 3. Adding new widgets or tools
-4. Changing widget configurations
+4. Modifying shared React hooks in `src/*.ts`
+5. Changing widget entry points or structure
 
 The tests are infrastructure-focused and don't require modification when changing sample data or business logic.
 
 ## Important Notes
 
 - Always run `pnpm run build` before starting the Python server
-- Always run `pnpm run test` after modifying server code
+- Always run `pnpm run test` after modifying any code (server or UI)
 - Restart Python server after rebuilding (LRU cache)
 - Widget HTML must have `mimeType: "text/html+skybridge"`
 - Use `window.openai.*` for ChatGPT host communication
+- Test files are in `server/tests/` (Python) and `tests/` (TypeScript)
