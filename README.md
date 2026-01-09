@@ -6,7 +6,7 @@ A template for building ChatGPT Apps, designed to be edited seamlessly with AI c
 
 **Build ChatGPT Apps with AI assistance.** This template is structured so that AI coding agents can modify, extend, and test your app without manual intervention:
 
-1. **Clear file structure** - `CLAUDE.md` explains the codebase, so AI agents know where things are
+1. **Coding Agent Onboarding** - `CLAUDE.md` explains the codebase, so AI agents know where things are
 2. **Orthogonal test suite** - 272 tests that pass regardless of what app you build
 3. **Working examples** - 8 widget examples to learn from or build upon
 
