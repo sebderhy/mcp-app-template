@@ -675,6 +675,108 @@ except Exception:
 
 
 # =============================================================================
+# SIMULATOR CHAT API
+# =============================================================================
+
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+import json as json_module
+
+
+class ChatRequest(BaseModel):
+    """Request model for chat endpoint."""
+    message: str
+    conversation_id: Optional[str] = "default"
+    model_config = ConfigDict(extra="forbid")
+
+
+class WidgetData(BaseModel):
+    """Widget data returned from chat."""
+    tool_name: str
+    html: str
+    tool_output: Dict[str, Any]
+    model_config = ConfigDict(extra="forbid")
+
+
+class ChatResponse(BaseModel):
+    """Response model for chat endpoint."""
+    message: str
+    widget: Optional[WidgetData] = None
+    conversation_id: str
+    model_config = ConfigDict(extra="forbid")
+
+
+async def chat_endpoint(request: Request) -> JSONResponse:
+    """
+    Chat endpoint for the local simulator.
+    Receives a message, runs it through the OpenAI agent with MCP tools,
+    and returns the response with any widget data.
+    """
+    try:
+        body = await request.json()
+        chat_request = ChatRequest.model_validate(body)
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Invalid request: {e}"},
+            status_code=400
+        )
+
+    try:
+        # Import here to avoid circular imports
+        from agent_runner import run_agent, WidgetResult
+
+        result = await run_agent(
+            prompt=chat_request.message,
+            conversation_id=chat_request.conversation_id or "default"
+        )
+
+        # Build response
+        widget_data = None
+        if result.widget:
+            widget_data = WidgetData(
+                tool_name=result.widget.tool_name,
+                html=result.widget.html,
+                tool_output=result.widget.tool_output
+            )
+
+        response = ChatResponse(
+            message=result.message,
+            widget=widget_data,
+            conversation_id=chat_request.conversation_id or "default"
+        )
+
+        return JSONResponse(response.model_dump())
+
+    except Exception as e:
+        return JSONResponse(
+            {"error": str(e), "message": f"Error processing request: {e}"},
+            status_code=500
+        )
+
+
+async def reset_chat_endpoint(request: Request) -> JSONResponse:
+    """Reset conversation history."""
+    try:
+        body = await request.json()
+        conversation_id = body.get("conversation_id", "default")
+    except Exception:
+        conversation_id = "default"
+
+    try:
+        from agent_runner import clear_conversation
+        clear_conversation(conversation_id)
+        return JSONResponse({"status": "ok", "conversation_id": conversation_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# Add chat routes to the app
+app.routes.append(Route("/chat", chat_endpoint, methods=["POST"]))
+app.routes.append(Route("/chat/reset", reset_chat_endpoint, methods=["POST"]))
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 

@@ -24,6 +24,7 @@ const targets: string[] = [
   "solar-system",
   "todo",
   "shop",
+  "simulator",
 ];
 const builtNames: string[] = [];
 
