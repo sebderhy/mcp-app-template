@@ -32,10 +32,26 @@ pnpm run dev        # Dev mode with hot reload
 
 ## Local Simulator
 
-Test widgets locally without connecting to ChatGPT:
+Test widgets locally without connecting to ChatGPT. **No API key required** - the simulator uses Puter.js as a free fallback.
+
+### Zero-Config Mode (Recommended for AI Agents)
+
+```bash
+pnpm run build
+pnpm run server
+# Open http://localhost:8000/assets/simulator.html
+```
+
+The simulator automatically detects when no API key is configured and uses [Puter.js](https://puter.com) - a free browser-based AI for development/testing. No credentials needed to test widgets.
+
+Note: Puter.js is only used in the simulator. In production, the app connects to real ChatGPT which provides the AI.
+
+### Full Mode (With OpenAI API Key)
+
+For production-quality testing with your preferred model:
 
 1. Set `OPENAI_API_KEY` in `.env`
-2. Configure model in `server/simulator_config.json`
+2. Optionally configure model in `server/simulator_config.json`
 3. Run `pnpm run server`
 4. Open `http://localhost:8000/assets/simulator.html`
 

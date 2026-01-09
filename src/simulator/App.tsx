@@ -2,12 +2,56 @@
  * Local ChatGPT Simulator
  *
  * A development tool that simulates ChatGPT's widget rendering environment.
- * Uses OpenAI's API with MCP tools to display interactive widgets locally.
+ * Uses OpenAI's API with MCP tools when OPENAI_API_KEY is set,
+ * or falls back to Puter.js (free, no API key needed) otherwise.
  */
 
-import { useState, useRef, useEffect } from "react";
-import { Send, Plus, Sun, Moon, Maximize2, X } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Plus, Sun, Moon, Maximize2, X, Zap } from "lucide-react";
 import WidgetRenderer from "./WidgetRenderer";
+
+// Puter.js types
+declare global {
+  interface Window {
+    puter?: {
+      ai: {
+        chat: (
+          input: string | Array<{ role: string; content?: string; tool_call_id?: string }>,
+          options?: { tools?: Tool[]; model?: string }
+        ) => Promise<PuterResponse | string>;
+      };
+    };
+  }
+}
+
+interface Tool {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: string;
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+  };
+}
+
+interface ToolCall {
+  id: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+interface PuterResponse {
+  message?: {
+    content?: string;
+    tool_calls?: ToolCall[];
+  };
+  toString(): string;
+}
 
 interface WidgetData {
   html: string;
@@ -23,6 +67,8 @@ interface Message {
   timestamp: Date;
 }
 
+type AgentMode = "checking" | "backend" | "puter";
+
 const EXAMPLE_PROMPTS = [
   "Show me a carousel of restaurants",
   "Display a dashboard with stats",
@@ -32,15 +78,68 @@ const EXAMPLE_PROMPTS = [
   "Display a shopping cart",
 ];
 
+const PUTER_MODEL = "gpt-4o-mini"; // Free model via Puter.js
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [expandedWidget, setExpandedWidget] = useState<WidgetData | null>(null);
+  const [agentMode, setAgentMode] = useState<AgentMode>("checking");
+  const [tools, setTools] = useState<Tool[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check API key status and load tools on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Check if backend has API key
+        const statusRes = await fetch("/chat/status");
+        const status = await statusRes.json();
+
+        if (status.has_api_key) {
+          setAgentMode("backend");
+        } else {
+          // Load Puter.js for fallback
+          await loadPuterJS();
+          // Load tool definitions
+          const toolsRes = await fetch("/tools");
+          const toolsData = await toolsRes.json();
+          setTools(toolsData.tools || []);
+          setAgentMode("puter");
+        }
+      } catch (error) {
+        console.error("Init error:", error);
+        // Default to backend mode, let it fail with a helpful error
+        setAgentMode("backend");
+      }
+    };
+
+    init();
+  }, []);
+
+  // Load Puter.js script dynamically
+  const loadPuterJS = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      if (window.puter) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://js.puter.com/v2/";
+      script.async = true;
+      script.onload = () => {
+        // Wait a bit for puter to initialize
+        setTimeout(resolve, 500);
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -49,12 +148,127 @@ export default function App() {
 
   // Focus input on mount
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (agentMode !== "checking") {
+      inputRef.current?.focus();
+    }
+  }, [agentMode]);
+
+  // Send message using Puter.js (free fallback)
+  const sendMessagePuter = useCallback(async (text: string) => {
+    if (!window.puter) {
+      throw new Error("Puter.js not loaded");
+    }
+
+    // Build system instructions
+    const systemPrompt = `You are a helpful assistant that can display interactive widgets.
+
+When the user asks to see something visual, use the appropriate tool:
+- show_card: For simple interactive card displays
+- show_carousel: For horizontal scrolling cards (places, products, recommendations)
+- show_list: For vertical lists with thumbnails (rankings, search results)
+- show_gallery: For image galleries with lightbox
+- show_dashboard: For stats and metrics displays
+- show_solar_system: For interactive 3D solar system
+- show_todo: For task/todo list management
+- show_shop: For shopping cart and e-commerce
+
+Always use a tool when the user asks to see, show, or display something visual.
+After calling a tool, provide a brief helpful response about what you're showing.`;
+
+    // First call with tools
+    const response = await window.puter.ai.chat(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: text }
+      ],
+      { tools, model: PUTER_MODEL }
+    );
+
+    // Check if it's a string response (no tool call)
+    if (typeof response === "string") {
+      return { message: response, widget: undefined };
+    }
+
+    // Check for tool calls
+    if (response.message?.tool_calls?.length) {
+      const toolCall = response.message.tool_calls[0];
+      const toolName = toolCall.function.name;
+      const toolArgs = JSON.parse(toolCall.function.arguments || "{}");
+
+      // Execute the tool via our backend
+      const toolResult = await fetch("/tools/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: toolName, arguments: toolArgs }),
+      });
+
+      const toolData = await toolResult.json();
+
+      if (toolData.error) {
+        throw new Error(toolData.error);
+      }
+
+      // Send tool result back to get final response
+      const finalResponse = await window.puter.ai.chat(
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text },
+          { role: "assistant", content: "", tool_calls: response.message.tool_calls } as any,
+          { role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(toolData.tool_output) }
+        ],
+        { model: PUTER_MODEL }
+      );
+
+      const finalMessage = typeof finalResponse === "string"
+        ? finalResponse
+        : finalResponse.message?.content || "Here's what I found:";
+
+      return {
+        message: finalMessage,
+        widget: {
+          html: toolData.html,
+          toolOutput: toolData.tool_output,
+          toolName: toolData.tool_name,
+        },
+      };
+    }
+
+    // No tool call, just return the message
+    return {
+      message: response.message?.content || response.toString(),
+      widget: undefined,
+    };
+  }, [tools]);
+
+  // Send message using backend (OpenAI API)
+  const sendMessageBackend = async (text: string) => {
+    const response = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || "Request failed");
+    }
+
+    return {
+      message: data.message || "Here's what I found:",
+      widget: data.widget
+        ? {
+            html: data.widget.html,
+            toolOutput: data.widget.tool_output,
+            toolName: data.widget.tool_name,
+          }
+        : undefined,
+    };
+  };
 
   const sendMessage = async (messageText?: string) => {
     const text = messageText || input;
-    if (!text.trim() || loading) return;
+    if (!text.trim() || loading || agentMode === "checking") return;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -68,31 +282,15 @@ export default function App() {
     setLoading(true);
 
     try {
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || "Request failed");
-      }
-
-      const widgetData: WidgetData | undefined = data.widget
-        ? {
-            html: data.widget.html,
-            toolOutput: data.widget.tool_output,
-            toolName: data.widget.tool_name,
-          }
-        : undefined;
+      const result = agentMode === "puter"
+        ? await sendMessagePuter(text)
+        : await sendMessageBackend(text);
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: data.message || "Here's what I found:",
-        widget: widgetData,
+        content: result.message,
+        widget: result.widget,
         timestamp: new Date(),
       };
 
@@ -101,8 +299,7 @@ export default function App() {
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: "error",
-        content:
-          error instanceof Error ? error.message : "An error occurred",
+        content: error instanceof Error ? error.message : "An error occurred",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -112,14 +309,16 @@ export default function App() {
   };
 
   const newConversation = async () => {
-    try {
-      await fetch("/chat/reset", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-    } catch {
-      // Ignore reset errors
+    if (agentMode === "backend") {
+      try {
+        await fetch("/chat/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+      } catch {
+        // Ignore reset errors
+      }
     }
     setMessages([]);
     setExpandedWidget(null);
@@ -134,8 +333,7 @@ export default function App() {
     }
 
     if (message.type === "requestDisplayMode" && message.mode === "fullscreen") {
-      // Find the widget that requested fullscreen
-      const lastWidgetMsg = [...messages].reverse().find(m => m.widget);
+      const lastWidgetMsg = [...messages].reverse().find((m) => m.widget);
       if (lastWidgetMsg?.widget) {
         setExpandedWidget(lastWidgetMsg.widget);
       }
@@ -143,6 +341,22 @@ export default function App() {
   };
 
   const isDark = theme === "dark";
+
+  // Show loading while checking status
+  if (agentMode === "checking") {
+    return (
+      <div className={`h-screen flex items-center justify-center ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-4">
+            <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+          <p className={isDark ? "text-gray-400" : "text-gray-500"}>Initializing simulator...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-screen flex flex-col ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
@@ -168,14 +382,33 @@ export default function App() {
             <h1 className={`text-lg font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
               ChatGPT Simulator
             </h1>
+            {/* Mode indicator */}
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`text-xs ${
+                  agentMode === "puter"
+                    ? "text-green-500"
+                    : isDark
+                    ? "text-gray-500"
+                    : "text-gray-400"
+                }`}
+              >
+                {agentMode === "puter" ? (
+                  <span className="flex items-center gap-1">
+                    <Zap size={12} />
+                    Puter.js (free, no API key)
+                  </span>
+                ) : (
+                  "OpenAI API"
+                )}
+              </span>
+            </div>
           </div>
         </div>
         <button
           onClick={() => setTheme(isDark ? "light" : "dark")}
           className={`p-2 rounded-lg transition-colors ${
-            isDark
-              ? "hover:bg-gray-800 text-gray-400"
-              : "hover:bg-gray-100 text-gray-600"
+            isDark ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-600"
           }`}
           title={`Switch to ${isDark ? "light" : "dark"} mode`}
         >
@@ -191,9 +424,14 @@ export default function App() {
               <h2 className={`text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
                 ChatGPT Widget Simulator
               </h2>
-              <p className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+              <p className={`text-sm mb-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                 Test your widgets locally before deploying to ChatGPT
               </p>
+              {agentMode === "puter" && (
+                <p className={`text-xs mb-6 ${isDark ? "text-green-400" : "text-green-600"}`}>
+                  Using Puter.js - no API key required!
+                </p>
+              )}
               <div className="flex flex-wrap justify-center gap-2">
                 {EXAMPLE_PROMPTS.map((prompt) => (
                   <button
@@ -235,22 +473,24 @@ export default function App() {
 
               {/* Inline Widget */}
               {msg.widget && (
-                <div className={`rounded-2xl overflow-hidden border ${
-                  isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
-                }`}>
+                <div
+                  className={`rounded-2xl overflow-hidden border ${
+                    isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                  }`}
+                >
                   {/* Widget Header */}
-                  <div className={`px-4 py-2 flex items-center justify-between border-b ${
-                    isDark ? "border-gray-700" : "border-gray-100"
-                  }`}>
+                  <div
+                    className={`px-4 py-2 flex items-center justify-between border-b ${
+                      isDark ? "border-gray-700" : "border-gray-100"
+                    }`}
+                  >
                     <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
                       {msg.widget.toolName.replace("show_", "").replace(/_/g, " ")}
                     </span>
                     <button
                       onClick={() => setExpandedWidget(msg.widget!)}
                       className={`p-1.5 rounded-lg transition-colors ${
-                        isDark
-                          ? "hover:bg-gray-700 text-gray-400"
-                          : "hover:bg-gray-100 text-gray-500"
+                        isDark ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500"
                       }`}
                       title="Expand"
                     >
@@ -280,21 +520,15 @@ export default function App() {
               >
                 <div className="flex items-center gap-1">
                   <div
-                    className={`w-2 h-2 rounded-full animate-bounce ${
-                      isDark ? "bg-gray-500" : "bg-gray-400"
-                    }`}
+                    className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-gray-500" : "bg-gray-400"}`}
                     style={{ animationDelay: "0ms" }}
                   />
                   <div
-                    className={`w-2 h-2 rounded-full animate-bounce ${
-                      isDark ? "bg-gray-500" : "bg-gray-400"
-                    }`}
+                    className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-gray-500" : "bg-gray-400"}`}
                     style={{ animationDelay: "150ms" }}
                   />
                   <div
-                    className={`w-2 h-2 rounded-full animate-bounce ${
-                      isDark ? "bg-gray-500" : "bg-gray-400"
-                    }`}
+                    className={`w-2 h-2 rounded-full animate-bounce ${isDark ? "bg-gray-500" : "bg-gray-400"}`}
                     style={{ animationDelay: "300ms" }}
                   />
                 </div>
@@ -309,11 +543,11 @@ export default function App() {
       {/* Input Area */}
       <div className={`border-t ${isDark ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"}`}>
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className={`flex items-center gap-3 rounded-2xl border px-4 py-2 ${
-            isDark
-              ? "bg-gray-800 border-gray-700"
-              : "bg-white border-gray-200"
-          }`}>
+          <div
+            className={`flex items-center gap-3 rounded-2xl border px-4 py-2 ${
+              isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+            }`}
+          >
             <input
               ref={inputRef}
               type="text"
@@ -323,9 +557,7 @@ export default function App() {
               placeholder="Message ChatGPT..."
               disabled={loading}
               className={`flex-1 bg-transparent outline-none ${
-                isDark
-                  ? "text-white placeholder-gray-500"
-                  : "text-gray-900 placeholder-gray-400"
+                isDark ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"
               }`}
             />
             <button
@@ -343,7 +575,9 @@ export default function App() {
             </button>
           </div>
           <p className={`text-xs text-center mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
-            Local simulator for ChatGPT widget development
+            {agentMode === "puter"
+              ? "Powered by Puter.js - free, no API key needed"
+              : "Local simulator for ChatGPT widget development"}
           </p>
         </div>
       </div>
@@ -351,22 +585,24 @@ export default function App() {
       {/* Fullscreen Widget Modal */}
       {expandedWidget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className={`w-full h-full max-w-4xl max-h-[90vh] m-4 rounded-2xl overflow-hidden flex flex-col ${
-            isDark ? "bg-gray-900" : "bg-white"
-          }`}>
+          <div
+            className={`w-full h-full max-w-4xl max-h-[90vh] m-4 rounded-2xl overflow-hidden flex flex-col ${
+              isDark ? "bg-gray-900" : "bg-white"
+            }`}
+          >
             {/* Modal Header */}
-            <div className={`px-4 py-3 flex items-center justify-between border-b ${
-              isDark ? "border-gray-700" : "border-gray-200"
-            }`}>
+            <div
+              className={`px-4 py-3 flex items-center justify-between border-b ${
+                isDark ? "border-gray-700" : "border-gray-200"
+              }`}
+            >
               <span className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
                 {expandedWidget.toolName.replace("show_", "").replace(/_/g, " ")}
               </span>
               <button
                 onClick={() => setExpandedWidget(null)}
                 className={`p-2 rounded-lg transition-colors ${
-                  isDark
-                    ? "hover:bg-gray-800 text-gray-400"
-                    : "hover:bg-gray-100 text-gray-500"
+                  isDark ? "hover:bg-gray-800 text-gray-400" : "hover:bg-gray-100 text-gray-500"
                 }`}
               >
                 <X size={20} />

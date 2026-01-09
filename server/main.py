@@ -771,9 +771,110 @@ async def reset_chat_endpoint(request: Request) -> JSONResponse:
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+# =============================================================================
+# SIMULATOR STATUS & TOOLS API (for Puter.js fallback)
+# =============================================================================
+
+async def chat_status_endpoint(request: Request) -> JSONResponse:
+    """
+    Check if OpenAI API key is configured.
+    Used by frontend to decide whether to use backend agent or Puter.js fallback.
+    """
+    import os
+    from pathlib import Path
+    from dotenv import load_dotenv
+
+    # Load .env file
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        env_path = Path(__file__).parent.parent / ".env"
+    load_dotenv(env_path)
+
+    has_api_key = bool(os.getenv("OPENAI_API_KEY"))
+
+    return JSONResponse({
+        "has_api_key": has_api_key,
+        "fallback_available": True,  # Puter.js is always available
+    })
+
+
+async def tools_list_endpoint(request: Request) -> JSONResponse:
+    """
+    Return tool definitions in OpenAI function calling format.
+    Used by Puter.js fallback to get available tools.
+    """
+    tools = []
+
+    for widget in WIDGETS:
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": widget.identifier,
+                "description": widget.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "Widget title"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        })
+
+    return JSONResponse({"tools": tools})
+
+
+async def tool_call_endpoint(request: Request) -> JSONResponse:
+    """
+    Execute a tool and return the result.
+    Used by Puter.js fallback to call MCP tools.
+    """
+    try:
+        body = await request.json()
+        tool_name = body.get("name")
+        arguments = body.get("arguments", {})
+
+        if not tool_name:
+            return JSONResponse({"error": "Missing tool name"}, status_code=400)
+
+        widget = WIDGETS_BY_ID.get(tool_name)
+        if not widget:
+            return JSONResponse({"error": f"Unknown tool: {tool_name}"}, status_code=404)
+
+        # Create a mock request and call the handler
+        import mcp.types as types
+        mock_req = types.CallToolRequest(
+            method="tools/call",
+            params=types.CallToolRequestParams(name=tool_name, arguments=arguments)
+        )
+
+        result = await handle_call_tool(mock_req)
+
+        # Extract structured content from result
+        if hasattr(result, 'root') and hasattr(result.root, 'structuredContent'):
+            structured_content = result.root.structuredContent
+        else:
+            structured_content = {}
+
+        return JSONResponse({
+            "tool_name": tool_name,
+            "html": widget.html,
+            "tool_output": structured_content,
+        })
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # Add chat routes to the app
 app.routes.append(Route("/chat", chat_endpoint, methods=["POST"]))
 app.routes.append(Route("/chat/reset", reset_chat_endpoint, methods=["POST"]))
+app.routes.append(Route("/chat/status", chat_status_endpoint, methods=["GET"]))
+app.routes.append(Route("/tools", tools_list_endpoint, methods=["GET"]))
+app.routes.append(Route("/tools/call", tool_call_endpoint, methods=["POST"]))
 
 
 # =============================================================================
