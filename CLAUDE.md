@@ -24,10 +24,12 @@ ChatGPT App template: React widgets + Python MCP server. Widgets render inside C
 ## Commands
 
 ```bash
-pnpm run build      # Build widgets (required before server)
-pnpm run test       # Run all 282 tests
-pnpm run server     # Start MCP server at localhost:8000
-pnpm run dev        # Dev mode with hot reload
+pnpm run build       # Build widgets (required before server)
+pnpm run test        # Run all 282 tests
+pnpm run server      # Start MCP server at localhost:8000
+pnpm run dev         # Dev mode with hot reload
+pnpm run setup:test  # Install Playwright browsers (one-time, ~150MB)
+pnpm run ui-test     # Visual UI testing (see below)
 ```
 
 ## Local Simulator
@@ -71,6 +73,48 @@ For production-quality testing with your preferred model:
 **IMPORTANT: Always run `pnpm run test` after any code change.**
 
 Tests are infrastructure-only - they pass regardless of widget content or business logic. Use them to verify changes work without connecting to ChatGPT.
+
+## Visual UI Testing
+
+You can visually verify widgets render correctly using the UI test tool. This captures screenshots that you can read with your Read tool.
+
+### Setup (one-time)
+```bash
+pnpm run setup:test   # Downloads Playwright Chromium (~150MB)
+```
+
+### Testing Widgets
+
+**Direct mode (no API key needed):**
+```bash
+pnpm run ui-test --widget carousel    # Test carousel widget
+pnpm run ui-test --widget dashboard   # Test dashboard widget
+pnpm run ui-test --widget todo        # Test any widget by name
+```
+
+**AI mode (requires OPENAI_API_KEY in .env):**
+```bash
+pnpm run ui-test "Show me the carousel widget"
+```
+
+### Reading Results
+
+After running ui-test, read the screenshot to verify:
+```
+Read tool → /tmp/ui-test/screenshot.png
+```
+
+Other artifacts:
+- `/tmp/ui-test/dom.json` - Structured data about what rendered
+- `/tmp/ui-test/console.log` - Browser console output
+
+### Recommended Workflow
+
+After modifying a widget:
+1. `pnpm run build`
+2. `pnpm run test`
+3. `pnpm run ui-test --widget <widget-name>`
+4. Read `/tmp/ui-test/screenshot.png` to verify visually
 
 ## Adding a Widget
 

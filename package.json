@@ -18,7 +18,9 @@
     "test:ui": "vitest run",
     "test:ui:watch": "vitest",
     "test:ui:cov": "vitest run --coverage",
-    "test:cov": "pnpm run test:server:cov && pnpm run test:ui:cov"
+    "test:cov": "pnpm run test:server:cov && pnpm run test:ui:cov",
+    "setup:test": "npx playwright install chromium",
+    "ui-test": "tsx scripts/ui-test.ts"
   },
   "keywords": [
     "chatgpt",
@@ -30,6 +32,7 @@
   "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@testing-library/react": "^16.3.0",
     "@vitest/coverage-v8": "^3.2.4",
     "happy-dom": "^18.0.1",

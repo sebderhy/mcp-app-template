@@ -7,10 +7,11 @@ A template for building ChatGPT Apps, designed to be edited seamlessly with AI c
 **Build ChatGPT Apps with AI assistance.** This template is structured so that AI coding agents can modify, extend, and test your app without manual intervention:
 
 1. **Zero-config testing** - Simulator works instantly with no API key (free for dev/testing via [Puter.js](https://puter.com))
-2. **Coding Agent Onboarding** - `CLAUDE.md` explains the codebase, so AI agents know where things are
-3. **Orthogonal test suite** - 282 tests that pass regardless of what app you build
-4. **Local ChatGPT Simulator** - Test widgets locally without deploying to ChatGPT
-5. **Working examples** - 8 widget examples to learn from or build upon
+2. **Automated UI testing** - AI agents can test widgets visually using Playwright screenshots
+3. **Coding Agent Onboarding** - `CLAUDE.md` explains the codebase, so AI agents know where things are
+4. **Orthogonal test suite** - 282 tests that pass regardless of what app you build
+5. **Local ChatGPT Simulator** - Test widgets locally without deploying to ChatGPT
+6. **Working examples** - 8 widget examples to learn from or build upon
 
 The tests verify *infrastructure*, not business logic. When you (or your AI agent) modify widgets, add features, or change data - the tests still pass. Run `pnpm run test` anytime to verify everything works, without connecting to ChatGPT.
 
@@ -147,6 +148,56 @@ pnpm run test:ui     # UI tests only (200)
 - React hooks work correctly
 
 They don't verify your specific widgets, data, or business logic. Modify anything - tests still pass.
+
+## Automated UI Testing (for AI Agents)
+
+AI coding agents can visually test widgets using the built-in UI test tool. This enables AI agents to verify their changes work correctly by examining screenshots.
+
+### Setup (One-time)
+
+```bash
+pnpm run setup:test   # Install Playwright browsers (~150MB)
+```
+
+### Two Testing Modes
+
+**1. AI Mode (with OpenAI API key)** - Full AI-in-the-loop testing:
+```bash
+pnpm run ui-test "Show me the carousel widget"
+```
+The AI receives your prompt, decides which widget to show, and the tool captures the result.
+
+**2. Direct Mode (no API key)** - Test specific widgets directly:
+```bash
+pnpm run ui-test --widget carousel
+pnpm run ui-test --widget dashboard
+```
+Renders the widget without AI, useful for quick smoke tests.
+
+### Output
+
+Both modes save artifacts to `/tmp/ui-test/`:
+- `screenshot.png` - Visual capture of the rendered widget
+- `dom.json` - Structured data about what rendered
+- `console.log` - Browser console output
+
+AI agents can read the screenshot to verify widgets rendered correctly:
+```
+Read tool → /tmp/ui-test/screenshot.png
+```
+
+### Example Workflow (Claude Code)
+
+```
+User: "Add a new stats card to the dashboard"
+
+Claude Code:
+1. Modifies src/dashboard/index.tsx
+2. Runs pnpm run build
+3. Runs pnpm run ui-test --widget dashboard
+4. Reads /tmp/ui-test/screenshot.png
+5. Verifies the new card appears correctly
+```
 
 ## Key APIs
 
