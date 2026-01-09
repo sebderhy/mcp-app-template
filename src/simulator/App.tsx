@@ -6,7 +6,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Send, RotateCcw, Sun, Moon, Maximize2, Minimize2 } from "lucide-react";
+import { Send, Plus, Sun, Moon, Maximize2, X } from "lucide-react";
 import WidgetRenderer from "./WidgetRenderer";
 
 interface WidgetData {
@@ -37,8 +37,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [widgetFullscreen, setWidgetFullscreen] = useState(false);
-  const [currentWidget, setCurrentWidget] = useState<WidgetData | null>(null);
+  const [expandedWidget, setExpandedWidget] = useState<WidgetData | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,11 +88,6 @@ export default function App() {
           }
         : undefined;
 
-      // Update current widget if present
-      if (widgetData) {
-        setCurrentWidget(widgetData);
-      }
-
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -117,7 +111,7 @@ export default function App() {
     }
   };
 
-  const resetChat = async () => {
+  const newConversation = async () => {
     try {
       await fetch("/chat/reset", {
         method: "POST",
@@ -128,7 +122,7 @@ export default function App() {
       // Ignore reset errors
     }
     setMessages([]);
-    setCurrentWidget(null);
+    setExpandedWidget(null);
     inputRef.current?.focus();
   };
 
@@ -139,11 +133,11 @@ export default function App() {
       sendMessage(message.prompt);
     }
 
-    if (message.type === "requestDisplayMode") {
-      if (message.mode === "fullscreen") {
-        setWidgetFullscreen(true);
-      } else {
-        setWidgetFullscreen(false);
+    if (message.type === "requestDisplayMode" && message.mode === "fullscreen") {
+      // Find the widget that requested fullscreen
+      const lastWidgetMsg = [...messages].reverse().find(m => m.widget);
+      if (lastWidgetMsg?.widget) {
+        setExpandedWidget(lastWidgetMsg.widget);
       }
     }
   };
@@ -151,79 +145,64 @@ export default function App() {
   const isDark = theme === "dark";
 
   return (
-    <div className={`h-screen flex ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
-      {/* Chat Panel */}
-      <div
-        className={`${
-          widgetFullscreen ? "hidden" : "w-1/2"
-        } flex flex-col border-r ${
+    <div className={`h-screen flex flex-col ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+      {/* Header */}
+      <header
+        className={`px-4 py-3 border-b flex items-center justify-between ${
           isDark ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"
         }`}
       >
-        {/* Header */}
-        <header
-          className={`p-4 border-b flex items-center justify-between ${
-            isDark ? "border-gray-700" : "border-gray-200"
-          }`}
-        >
+        <div className="flex items-center gap-3">
+          <button
+            onClick={newConversation}
+            className={`p-2 rounded-lg transition-colors ${
+              isDark
+                ? "hover:bg-gray-800 text-gray-400 hover:text-white"
+                : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
+            }`}
+            title="New conversation"
+          >
+            <Plus size={20} />
+          </button>
           <div>
-            <h1
-              className={`text-lg font-semibold ${
-                isDark ? "text-white" : "text-gray-900"
-              }`}
-            >
+            <h1 className={`text-lg font-semibold ${isDark ? "text-white" : "text-gray-900"}`}>
               ChatGPT Simulator
             </h1>
-            <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-              Local widget development environment
-            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setTheme(isDark ? "light" : "dark")}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
-                  ? "hover:bg-gray-800 text-gray-400"
-                  : "hover:bg-gray-100 text-gray-600"
-              }`}
-              title={`Switch to ${isDark ? "light" : "dark"} mode`}
-            >
-              {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
-            <button
-              onClick={resetChat}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
-                  ? "hover:bg-gray-800 text-gray-400"
-                  : "hover:bg-gray-100 text-gray-600"
-              }`}
-              title="Reset conversation"
-            >
-              <RotateCcw size={20} />
-            </button>
-          </div>
-        </header>
+        </div>
+        <button
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          className={`p-2 rounded-lg transition-colors ${
+            isDark
+              ? "hover:bg-gray-800 text-gray-400"
+              : "hover:bg-gray-100 text-gray-600"
+          }`}
+          title={`Switch to ${isDark ? "light" : "dark"} mode`}
+        >
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+      </header>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Chat Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
           {messages.length === 0 && (
-            <div className="text-center py-8">
-              <p
-                className={`text-sm mb-4 ${
-                  isDark ? "text-gray-400" : "text-gray-500"
-                }`}
-              >
-                Try one of these prompts:
+            <div className="text-center py-12">
+              <h2 className={`text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+                ChatGPT Widget Simulator
+              </h2>
+              <p className={`text-sm mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                Test your widgets locally before deploying to ChatGPT
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {EXAMPLE_PROMPTS.map((prompt) => (
                   <button
                     key={prompt}
                     onClick={() => sendMessage(prompt)}
-                    className={`px-3 py-2 text-sm rounded-lg transition-colors ${
+                    className={`px-4 py-2 text-sm rounded-full transition-colors ${
                       isDark
-                        ? "bg-gray-800 hover:bg-gray-700 text-gray-300"
-                        : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        ? "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                        : "bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
                     }`}
                   >
                     {prompt}
@@ -234,38 +213,61 @@ export default function App() {
           )}
 
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2 ${
-                  msg.role === "user"
-                    ? "bg-blue-600 text-white"
-                    : msg.role === "error"
-                    ? isDark
-                      ? "bg-red-900/50 text-red-300 border border-red-800"
-                      : "bg-red-50 text-red-700 border border-red-200"
-                    : isDark
-                    ? "bg-gray-800 text-gray-100"
-                    : "bg-gray-100 text-gray-900"
-                }`}
-              >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-                {msg.widget && (
-                  <p
-                    className={`text-xs mt-2 ${
-                      msg.role === "user"
-                        ? "text-blue-200"
-                        : isDark
-                        ? "text-gray-500"
-                        : "text-gray-400"
-                    }`}
-                  >
-                    Widget: {msg.widget.toolName}
-                  </p>
-                )}
+            <div key={msg.id} className="space-y-3">
+              {/* Message */}
+              <div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white"
+                      : msg.role === "error"
+                      ? isDark
+                        ? "bg-red-900/50 text-red-300 border border-red-800"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                      : isDark
+                      ? "bg-gray-800 text-gray-100"
+                      : "bg-white text-gray-900 border border-gray-200"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
               </div>
+
+              {/* Inline Widget */}
+              {msg.widget && (
+                <div className={`rounded-2xl overflow-hidden border ${
+                  isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                }`}>
+                  {/* Widget Header */}
+                  <div className={`px-4 py-2 flex items-center justify-between border-b ${
+                    isDark ? "border-gray-700" : "border-gray-100"
+                  }`}>
+                    <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+                      {msg.widget.toolName.replace("show_", "").replace(/_/g, " ")}
+                    </span>
+                    <button
+                      onClick={() => setExpandedWidget(msg.widget!)}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isDark
+                          ? "hover:bg-gray-700 text-gray-400"
+                          : "hover:bg-gray-100 text-gray-500"
+                      }`}
+                      title="Expand"
+                    >
+                      <Maximize2 size={16} />
+                    </button>
+                  </div>
+                  {/* Widget Content */}
+                  <div className="h-[400px]">
+                    <WidgetRenderer
+                      html={msg.widget.html}
+                      toolOutput={msg.widget.toolOutput}
+                      theme={theme}
+                      onMessage={handleWidgetMessage}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
@@ -273,7 +275,7 @@ export default function App() {
             <div className="flex justify-start">
               <div
                 className={`rounded-2xl px-4 py-3 ${
-                  isDark ? "bg-gray-800" : "bg-gray-100"
+                  isDark ? "bg-gray-800" : "bg-white border border-gray-200"
                 }`}
               >
                 <div className="flex items-center gap-1">
@@ -302,103 +304,87 @@ export default function App() {
 
           <div ref={messagesEndRef} />
         </div>
+      </div>
 
-        {/* Input */}
-        <div className={`p-4 border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>
-          <div className="flex gap-2">
+      {/* Input Area */}
+      <div className={`border-t ${isDark ? "border-gray-700 bg-gray-900" : "border-gray-200 bg-white"}`}>
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className={`flex items-center gap-3 rounded-2xl border px-4 py-2 ${
+            isDark
+              ? "bg-gray-800 border-gray-700"
+              : "bg-white border-gray-200"
+          }`}>
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              placeholder="Ask me to show a widget..."
+              placeholder="Message ChatGPT..."
               disabled={loading}
-              className={`flex-1 px-4 py-3 rounded-xl border outline-none transition-colors ${
+              className={`flex-1 bg-transparent outline-none ${
                 isDark
-                  ? "bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500"
-                  : "bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500"
+                  ? "text-white placeholder-gray-500"
+                  : "text-gray-900 placeholder-gray-400"
               }`}
             />
             <button
               onClick={() => sendMessage()}
               disabled={loading || !input.trim()}
-              className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`p-2 rounded-lg transition-colors ${
+                input.trim()
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
+                  : isDark
+                  ? "text-gray-600"
+                  : "text-gray-300"
+              }`}
             >
-              <Send size={20} />
+              <Send size={18} />
             </button>
           </div>
+          <p className={`text-xs text-center mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+            Local simulator for ChatGPT widget development
+          </p>
         </div>
       </div>
 
-      {/* Widget Panel */}
-      <div
-        className={`${
-          widgetFullscreen ? "w-full" : "w-1/2"
-        } flex flex-col ${isDark ? "bg-gray-800" : "bg-gray-100"}`}
-      >
-        {/* Widget Header */}
-        <header
-          className={`p-4 border-b flex items-center justify-between ${
-            isDark ? "border-gray-700" : "border-gray-200"
-          }`}
-        >
-          <div>
-            <h2
-              className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}
-            >
-              Widget Preview
-            </h2>
-            {currentWidget && (
-              <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                {currentWidget.toolName}
-              </p>
-            )}
-          </div>
-          {currentWidget && (
-            <button
-              onClick={() => setWidgetFullscreen(!widgetFullscreen)}
-              className={`p-2 rounded-lg transition-colors ${
-                isDark
-                  ? "hover:bg-gray-700 text-gray-400"
-                  : "hover:bg-gray-200 text-gray-600"
-              }`}
-              title={widgetFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            >
-              {widgetFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-            </button>
-          )}
-        </header>
-
-        {/* Widget Content */}
-        <div className="flex-1 p-4 overflow-hidden">
-          {currentWidget ? (
-            <div className="h-full rounded-xl overflow-hidden shadow-lg">
+      {/* Fullscreen Widget Modal */}
+      {expandedWidget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className={`w-full h-full max-w-4xl max-h-[90vh] m-4 rounded-2xl overflow-hidden flex flex-col ${
+            isDark ? "bg-gray-900" : "bg-white"
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-4 py-3 flex items-center justify-between border-b ${
+              isDark ? "border-gray-700" : "border-gray-200"
+            }`}>
+              <span className={`font-medium ${isDark ? "text-white" : "text-gray-900"}`}>
+                {expandedWidget.toolName.replace("show_", "").replace(/_/g, " ")}
+              </span>
+              <button
+                onClick={() => setExpandedWidget(null)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark
+                    ? "hover:bg-gray-800 text-gray-400"
+                    : "hover:bg-gray-100 text-gray-500"
+                }`}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {/* Modal Content */}
+            <div className="flex-1 overflow-hidden">
               <WidgetRenderer
-                html={currentWidget.html}
-                toolOutput={currentWidget.toolOutput}
+                html={expandedWidget.html}
+                toolOutput={expandedWidget.toolOutput}
                 theme={theme}
+                displayMode="fullscreen"
                 onMessage={handleWidgetMessage}
               />
             </div>
-          ) : (
-            <div
-              className={`h-full flex items-center justify-center rounded-xl border-2 border-dashed ${
-                isDark
-                  ? "border-gray-700 text-gray-500"
-                  : "border-gray-300 text-gray-400"
-              }`}
-            >
-              <div className="text-center">
-                <p className="text-lg mb-2">No widget loaded</p>
-                <p className="text-sm">
-                  Send a message to display a widget here
-                </p>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

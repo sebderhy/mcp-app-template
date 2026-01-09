@@ -32,12 +32,29 @@ from agents.model_settings import ModelSettings
 # CONFIGURATION
 # =============================================================================
 
-# Model to use - can be overridden via OPENAI_MODEL env var
-DEFAULT_MODEL = "gpt-4o-mini"
-MODEL = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
+def load_config() -> dict:
+    """Load configuration from simulator_config.json."""
+    config_path = Path(__file__).parent / "simulator_config.json"
+    default_config = {
+        "model": "gpt-4o-mini",
+        "mcp_server_url": "http://localhost:8000/mcp",
+        "max_conversation_history": 20
+    }
 
-# MCP Server URL (the existing server)
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
+    if config_path.exists():
+        try:
+            with open(config_path, "r") as f:
+                return {**default_config, **json.load(f)}
+        except (json.JSONDecodeError, IOError):
+            pass
+    return default_config
+
+CONFIG = load_config()
+
+# Model and MCP URL from config (env vars take precedence for secrets only)
+MODEL = CONFIG["model"]
+MCP_SERVER_URL = CONFIG["mcp_server_url"]
+MAX_CONVERSATION_HISTORY = CONFIG["max_conversation_history"]
 
 
 # =============================================================================
@@ -134,9 +151,9 @@ class ConversationManager:
     def add_message(self, conversation_id: str, role: str, content: str):
         history = self.get_history(conversation_id)
         history.append({"role": role, "content": content})
-        # Keep last 20 messages to avoid token limits
-        if len(history) > 20:
-            self.conversations[conversation_id] = history[-20:]
+        # Keep last N messages to avoid token limits
+        if len(history) > MAX_CONVERSATION_HISTORY:
+            self.conversations[conversation_id] = history[-MAX_CONVERSATION_HISTORY:]
 
     def clear(self, conversation_id: str):
         if conversation_id in self.conversations:

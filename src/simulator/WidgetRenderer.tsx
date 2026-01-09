@@ -11,6 +11,7 @@ interface WidgetRendererProps {
   html: string;
   toolOutput: Record<string, unknown>;
   theme?: "light" | "dark";
+  displayMode?: "inline" | "fullscreen";
   onMessage?: (message: { type: string; [key: string]: unknown }) => void;
 }
 
@@ -18,6 +19,7 @@ export default function WidgetRenderer({
   html,
   toolOutput,
   theme = "light",
+  displayMode = "inline",
   onMessage,
 }: WidgetRendererProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -32,8 +34,8 @@ export default function WidgetRenderer({
         window.openai = {
           // Theme and layout
           theme: "${theme}",
-          displayMode: "inline",
-          maxHeight: 600,
+          displayMode: "${displayMode}",
+          maxHeight: ${displayMode === "fullscreen" ? 900 : 400},
           safeArea: { top: 0, bottom: 0, left: 0, right: 0 },
           locale: "en-US",
           userAgent: { platform: "simulator", version: "1.0.0" },
@@ -96,7 +98,7 @@ export default function WidgetRenderer({
 
     // Write to iframe using srcdoc
     iframe.srcdoc = modifiedHtml;
-  }, [html, toolOutput, theme]);
+  }, [html, toolOutput, theme, displayMode]);
 
   // Listen for messages from iframe
   useEffect(() => {

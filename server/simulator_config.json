@@ -1,0 +1,5 @@
+{
+  "model": "gpt-5-mini",
+  "mcp_server_url": "http://localhost:8000/mcp",
+  "max_conversation_history": 20
+}
