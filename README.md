@@ -23,7 +23,7 @@ https://github.com/user-attachments/assets/f5877544-0dce-4c31-979e-50b5533f9a16
 git clone https://github.com/sebderhy/chatgpt-app-template.git my-app
 cd my-app
 pnpm install
-pip install -r server/requirements.txt
+cd server && uv sync && cd ..
 
 # Build, test, and run
 pnpm run build
