@@ -23,17 +23,28 @@ https://github.com/user-attachments/assets/f5877544-0dce-4c31-979e-50b5533f9a16
 ## Quick Start
 
 ```bash
-# Clone and install
+# Clone and setup
 git clone https://github.com/sebderhy/chatgpt-app-template.git my-app
 cd my-app
-pnpm install
-cd server && uv sync && cd ..
+./setup.sh        # Installs deps, builds widgets, runs tests
 
-# Build and run
-pnpm run build
-pnpm run test     # Verify everything works
+# Start the server
 pnpm run server   # Starts on http://localhost:8000
 ```
+
+<details>
+<summary>Manual setup (alternative)</summary>
+
+```bash
+pnpm install
+cd server && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]" && cd ..
+pnpm run setup:test   # Install Playwright
+pnpm run build
+pnpm run test
+```
+
+**Tip:** If you have [uv](https://docs.astral.sh/uv/) installed, you can use `uv pip install -e ".[dev]"` for faster package installation, or simply run `uv sync` in the server directory.
+</details>
 
 Open the simulator: **http://localhost:8000/assets/simulator.html**
 

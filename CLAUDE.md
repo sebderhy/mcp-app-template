@@ -5,6 +5,7 @@ ChatGPT App template: React widgets + Python MCP server. Widgets render inside C
 ## Commands
 
 ```bash
+./setup.sh           # First-time setup (installs deps, builds, tests)
 pnpm run build       # Build widgets (REQUIRED before server)
 pnpm run test        # Run all tests (ALWAYS run after changes)
 pnpm run server      # Start MCP server at localhost:8000
