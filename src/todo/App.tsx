@@ -76,8 +76,6 @@ const defaultProps: ToolOutput = {
   ],
 };
 
-const MAX_CARD_WIDTH_REM = 28;
-const MAX_CARD_HEIGHT_REM = 31;
 const DEFAULT_LIST_TITLE = "Untitled List";
 
 /* --------------------------------- Utils -------------------------------- */
@@ -177,7 +175,7 @@ function CircleCheckbox({ checked, onToggle, label }: { checked: boolean; onTogg
 /* --------------------------------- BaseCard -------------------------------- */
 function BaseCard({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div className="absolute top-0 left-0 w-full h-full bg-gray-50/100 rounded-3xl border border-black/10 shadow-[0px_8px_14px_rgba(0,0,0,0.05)] overflow-hidden">
+    <motion.div className="absolute inset-0 bg-gray-50/100 rounded-2xl sm:rounded-3xl border border-black/10 shadow-[0px_8px_14px_rgba(0,0,0,0.05)] overflow-hidden">
       {children}
     </motion.div>
   );
@@ -212,7 +210,7 @@ function DetailsSection({
           layout
         >
           <div
-            className="px-8 pb-3.5 pt-0 flex flex-col gap-2 text-sm"
+            className="px-4 sm:px-8 pb-3.5 pt-0 flex flex-col gap-2 text-sm"
             onClick={(e) => {
               e.stopPropagation();
               onClickInside?.();
@@ -224,7 +222,7 @@ function DetailsSection({
               value={item.note ?? ""}
               onChange={(e) => updateItemById(item.id, { note: e.target.value })}
               placeholder="Add Note"
-              className="-ml-1 w-full bg-transparent outline-none border-0 focus:ring-0 focus-visible:ring-0 text-sm text-black/55 placeholder-black/30"
+              className="w-full bg-transparent outline-none border-0 focus:ring-0 focus-visible:ring-0 text-sm text-black/55 placeholder-black/30"
             />
           </div>
         </motion.div>
@@ -565,7 +563,7 @@ function TodoListDetail({
         animate={{ scale: 1.5, y: 40, fontWeight: 500 }}
         exit={{ scale: 1, y: 0, fontWeight: 500 }}
         transition={{ type: "spring", bounce: 0.16, duration: 0.56 }}
-        className="text-md tracking-tight m-5 origin-top-left"
+        className="text-md tracking-tight m-3 sm:m-5 origin-top-left"
       >
         <input
           ref={titleInputRef}
@@ -584,7 +582,7 @@ function TodoListDetail({
         animate={{ opacity: 1, transition: { duration: 0 } }}
         exit={{ opacity: 0 }}
         transition={{ type: "spring", bounce: 0.16, duration: 0.56 }}
-        className="p-5 mt-10 flex flex-col"
+        className="p-3 sm:p-5 mt-10 flex flex-col"
         layout
       >
         <Reorder.Group
@@ -679,7 +677,7 @@ function TodoListGroup({
         ref={ref}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className="p-5 text-md cursor-pointer hover:bg-white/40 border-b border-black/10 flex items-center gap-3"
+        className="p-3 sm:p-5 text-md cursor-pointer hover:bg-white/40 border-b border-black/10 flex items-center gap-3"
         onClick={() => setCurrentTodoList(ref, index)}
       >
         <div className="flex-1">
@@ -820,14 +818,13 @@ export default function App() {
   };
 
   return (
-    <div className="antialiased flex items-center justify-center">
+    <div className="antialiased flex items-center justify-center w-full h-full min-h-[400px] p-2 sm:p-4">
       <div
-        className="relative"
-        style={{ width: `${MAX_CARD_WIDTH_REM}rem`, height: `${MAX_CARD_HEIGHT_REM}rem` }}
+        className="relative w-full h-full max-w-md sm:max-w-[28rem] min-h-[400px] sm:min-h-[31rem]"
       >
         <BaseCard>
           <div ref={ref} className="w-full h-full pt-9">
-            <div className="w-full flex top-0 left-0 absolute p-5 z-20">
+            <div className="w-full flex top-0 left-0 absolute p-3 sm:p-5 z-20">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: currentList ? 1 : 0 }}
@@ -856,8 +853,8 @@ export default function App() {
               transition={{ type: "spring", bounce: 0.16, duration: 0.56 }}
               className="w-full h-full"
             >
-              <div className="p-5">
-                <h1 className="font-medium text-2xl tracking-tight">My Lists</h1>
+              <div className="p-3 sm:p-5">
+                <h1 className="font-medium text-xl sm:text-2xl tracking-tight">My Lists</h1>
               </div>
               {todoLists.map((list, idx) => (
                 <TodoListGroup
