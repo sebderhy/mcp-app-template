@@ -150,9 +150,10 @@ When customizing this template for your own app, follow the guidelines in [`docs
 ## Testing
 
 ```bash
-pnpm run test        # Run all tests
-pnpm run test:server # Server tests only
-pnpm run test:ui     # UI tests only
+pnpm run test          # Run all tests (server + UI)
+pnpm run test:server   # Server tests only
+pnpm run test:ui       # UI unit tests only
+pnpm run test:browser  # Browser compliance tests (requires Playwright)
 ```
 
 **Tests are orthogonal to your app.** They verify:
@@ -160,8 +161,30 @@ pnpm run test:ui     # UI tests only
 - OpenAI Apps SDK format requirements
 - Build output structure
 - React hooks work correctly
+- Widgets render without errors in real browsers
 
 They don't verify your specific widgets, data, or business logic. Modify anything - tests still pass.
+
+### Browser Compliance Tests
+
+Browser tests run each widget in a real Chromium browser to verify:
+- No JavaScript errors when rendering
+- Widget renders visible content
+- Works in both light and dark themes
+- No unhandled promise rejections
+
+**Setup (one-time):**
+```bash
+pnpm run setup:test           # Install Playwright browsers
+npx playwright install-deps   # Install system dependencies (may need sudo)
+```
+
+**Run:**
+```bash
+pnpm run test:browser
+```
+
+Tests skip gracefully if browser dependencies aren't installed, so they won't break CI pipelines that lack browser support.
 
 ### MCP Best Practices Grade
 

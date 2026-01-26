@@ -8,6 +8,7 @@
  * - No JavaScript errors when rendering
  * - Widget actually renders content
  * - Works in both light and dark themes
+ * - No unhandled promise rejections
  *
  * Setup:
  *   pnpm run setup:test              # Install Playwright browsers
@@ -24,6 +25,21 @@ const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 
 let serverProcess: ChildProcess | null = null;
 let browserAvailable: boolean | null = null;
+
+// Track rejections per page
+const pageRejections = new WeakMap<Page, string[]>();
+const exposedPages = new WeakSet<Page>();
+
+function getPageRejections(page: Page): string[] {
+  if (!pageRejections.has(page)) {
+    pageRejections.set(page, []);
+  }
+  return pageRejections.get(page)!;
+}
+
+function clearPageRejections(page: Page): void {
+  pageRejections.set(page, []);
+}
 
 /**
  * Check if browser can be launched (cached)
@@ -96,9 +112,12 @@ async function renderWidget(
   page: Page,
   toolName: string,
   theme: "light" | "dark"
-): Promise<{ logs: string[]; errors: string[] }> {
+): Promise<{ logs: string[]; errors: string[]; rejections: string[] }> {
   const logs: string[] = [];
   const errors: string[] = [];
+
+  // Clear rejections from previous renders
+  clearPageRejections(page);
 
   page.on("console", (msg) => {
     const text = `[${msg.type()}] ${msg.text()}`;
@@ -111,6 +130,14 @@ async function renderWidget(
   page.on("pageerror", (error) => {
     errors.push(error.message);
   });
+
+  // Capture unhandled promise rejections (only expose once per page)
+  if (!exposedPages.has(page)) {
+    await page.exposeFunction("__reportRejection__", (reason: string) => {
+      getPageRejections(page).push(reason);
+    });
+    exposedPages.add(page);
+  }
 
   const toolResponse = await fetch(`${SERVER_URL}/tools/call`, {
     method: "POST",
@@ -149,6 +176,11 @@ async function renderWidget(
     window.openai.requestModal = async () => {};
     window.openai.requestClose = async () => {};
     window.dispatchEvent(new CustomEvent("openai:set_globals"));
+    // Report unhandled promise rejections to parent
+    window.addEventListener("unhandledrejection", (e) => {
+      const reason = e.reason?.message || e.reason?.toString() || "Unknown rejection";
+      window.parent.__reportRejection__(reason);
+    });
   </script>`;
 
   const widgetHtml = toolData.html.replace("<head>", "<head>" + injectionScript);
@@ -181,7 +213,7 @@ async function renderWidget(
 
   await page.waitForTimeout(2000);
 
-  return { logs, errors };
+  return { logs, errors, rejections: getPageRejections(page) };
 }
 
 /**
@@ -313,6 +345,34 @@ test.describe("Widget Compliance", () => {
       }
 
       expect(failures, `Widgets failing in dark theme:\n${failures.join("\n")}`).toHaveLength(0);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("all widgets have no unhandled promise rejections", async () => {
+    if (!(await canLaunchBrowser())) {
+      test.skip();
+      return;
+    }
+
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await context.newPage();
+
+    try {
+      const tools = await getWidgetTools();
+      const failures: string[] = [];
+
+      for (const tool of tools) {
+        const { rejections } = await renderWidget(page, tool, "light");
+
+        if (rejections.length > 0) {
+          failures.push(`${tool}: ${rejections.join(", ")}`);
+        }
+      }
+
+      expect(failures, `Widgets with unhandled rejections:\n${failures.join("\n")}`).toHaveLength(0);
     } finally {
       await browser.close();
     }

@@ -23,6 +23,7 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 | `src/*.ts` | Shared hooks (useWidgetProps, useTheme) |
 | `server/main.py` | MCP server - tools and handlers |
 | `build-all.mts:6` | Widget targets (add new widgets here) |
+| `tests/browser/*.spec.ts` | Browser compliance tests (Playwright) |
 
 ## Critical Rules
 
@@ -59,10 +60,14 @@ No API key required - uses Puter.js fallback for testing.
 
 ## Browser Compliance Tests
 
-Browser tests verify widgets work correctly in a real browser:
-- Renders without JavaScript errors
-- Renders visible content
-- Works in both light and dark themes
+Browser tests (`tests/browser/widget-compliance.spec.ts`) run each widget in a real Chromium browser:
+
+| Test | What it catches |
+|------|-----------------|
+| No JS errors | Syntax errors, missing imports, runtime exceptions |
+| Renders content | Empty widgets, failed hydration |
+| Dark theme works | Theme-specific bugs, hardcoded colors |
+| No unhandled rejections | Async errors, failed API calls |
 
 Setup (one-time):
 ```bash
@@ -72,7 +77,7 @@ npx playwright install-deps      # Install system deps (may need sudo)
 
 Run: `pnpm run test:browser`
 
-Tests skip gracefully if browser dependencies aren't installed.
+Tests auto-discover widgets from `/tools` endpoint and skip gracefully if browser dependencies aren't installed.
 
 ## VPS / Remote Deployment
 
