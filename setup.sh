@@ -2,8 +2,37 @@
 
 # ChatGPT App Template - Setup Script
 # This script sets up the repository for the first time
+#
+# Usage:
+#   ./setup.sh              Full development setup (default)
+#   ./setup.sh --minimal    Minimal setup to serve the app (skips Playwright & tests)
 
 set -e  # Exit on any error
+
+# Parse arguments
+MODE="full"
+for arg in "$@"; do
+    case $arg in
+        --minimal)
+            MODE="minimal"
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: ./setup.sh [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  (no flag)     Full development setup including Playwright and tests"
+            echo "  --minimal     Minimal setup to serve the app (skips Playwright & tests)"
+            echo "  --help, -h    Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -32,6 +61,7 @@ check_command() {
 }
 
 echo_step "Checking prerequisites..."
+echo "  Mode: $MODE"
 
 # Check for pnpm
 if ! check_command pnpm; then
@@ -87,22 +117,42 @@ fi
 
 cd ..
 
-# Install Playwright for UI testing
-echo_step "Installing Playwright browser (Chromium)..."
-pnpm run setup:test
+# Install Playwright for UI testing (skip in minimal mode)
+if [ "$MODE" != "minimal" ]; then
+    echo_step "Installing Playwright browser (Chromium)..."
+    pnpm run setup:test
+else
+    echo_step "Skipping Playwright installation (minimal mode)"
+fi
 
 # Build the widgets
 echo_step "Building widgets..."
 pnpm run build
 
-# Run tests
-echo_step "Running tests..."
-pnpm run test
+# Run tests (skip in minimal mode)
+if [ "$MODE" != "minimal" ]; then
+    echo_step "Running tests..."
+    pnpm run test
+else
+    echo_step "Skipping tests (minimal mode)"
+fi
 
 echo -e "\n${GREEN}✓ Setup complete!${NC}"
 echo ""
-echo "Next steps:"
-echo "  • Start the server:    pnpm run server"
-echo "  • Open the simulator:  http://localhost:8000/assets/simulator.html"
-echo "  • Test a widget:       pnpm run ui-test --widget <name>"
+
+if [ "$MODE" = "minimal" ]; then
+    echo "Next steps:"
+    echo "  • Start the server:    pnpm run server"
+    echo "  • Open the simulator:  http://localhost:8000/assets/simulator.html"
+    echo ""
+    echo "To enable testing later, run:"
+    echo "  • pnpm run setup:test           # Install Playwright browsers"
+    echo "  • npx playwright install-deps   # Install system deps (may need sudo)"
+    echo "  • pnpm run test                 # Run all tests"
+else
+    echo "Next steps:"
+    echo "  • Start the server:    pnpm run server"
+    echo "  • Open the simulator:  http://localhost:8000/assets/simulator.html"
+    echo "  • Test a widget:       pnpm run ui-test --widget <name>"
+fi
 echo ""
