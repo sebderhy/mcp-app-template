@@ -186,21 +186,31 @@ pnpm run test:browser
 
 Tests skip gracefully if browser dependencies aren't installed, so they won't break CI pipelines that lack browser support.
 
-### MCP Best Practices Grade
+### Automated Grading
 
-The test suite includes automated grading against [MCP server guidelines](docs/mcp-server-guidelines-for-ai-agents.md). After running tests, check `server/tests/mcp_best_practices_report.txt` for a grade report:
+The test suite includes automated grading against best practices. After running tests, check these reports:
 
+**MCP Best Practices** (`server/tests/mcp_best_practices_report.txt`):
+Grades against [MCP server guidelines](docs/mcp-server-guidelines-for-ai-agents.md) - tool naming, descriptions, error handling.
+
+**ChatGPT App Guidelines** (`server/tests/chatgpt_app_guidelines_report.txt`):
+Grades against [OpenAI's app design guidance](docs/chatgpt-apps-development-guidelines.md) - Know/Do/Show value, model-friendly outputs, ecosystem fit.
+
+Example report:
 ```
 ============================================================
-MCP BEST PRACTICES GRADE REPORT
+CHATGPT APP GUIDELINES GRADE REPORT
 ============================================================
 
-Tool Descriptions: 100.0%
-  ✓ Use cases documented: 100%
-  ✓ Arguments documented: 100%
-  ✓ Examples provided: 100%
+1. Value Proposition: 100.0%
+  ✓ Clear Know/Do/Show value: 100%
 
-OVERALL SCORE: 99.6% (Grade: A)
+2. Model-Friendly Outputs: 94.3%
+  ✓ List items have IDs: 100%
+  ✗ Complex outputs have summary: 88%
+      FIX: Add 'summary' field: {"summary": "3 items", "items": [...]}
+
+OVERALL SCORE: 95.5% (Grade: A)
 ============================================================
 ```
 

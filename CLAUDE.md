@@ -33,6 +33,7 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 - **Theme support:** Widgets MUST work in both light and dark modes
 - **Test after changes:** ALWAYS run `pnpm run test` after any code change
 - **MCP best practices:** Tests grade the server against MCP guidelines (run `pnpm run test` to generate `server/tests/mcp_best_practices_report.txt`)
+- **ChatGPT app guidelines:** Tests grade against OpenAI's app design guidance (generates `server/tests/chatgpt_app_guidelines_report.txt`)
 
 ## Documentation
 
