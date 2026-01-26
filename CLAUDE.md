@@ -8,6 +8,7 @@ ChatGPT App template: React widgets + Python MCP server. Widgets render inside C
 ./setup.sh           # First-time setup (installs deps, builds, tests)
 pnpm run build       # Build widgets (REQUIRED before server)
 pnpm run test        # Run all tests (ALWAYS run after changes)
+pnpm run test:browser  # Run browser compliance tests (requires Playwright setup)
 pnpm run server      # Start MCP server at localhost:8000
 pnpm run ui-test --widget <name>  # Visual test a widget
 ```
@@ -55,6 +56,23 @@ pnpm run build && pnpm run server
 ```
 
 No API key required - uses Puter.js fallback for testing.
+
+## Browser Compliance Tests
+
+Browser tests verify widgets work correctly in a real browser:
+- Renders without JavaScript errors
+- Renders visible content
+- Works in both light and dark themes
+
+Setup (one-time):
+```bash
+pnpm run setup:test              # Install Playwright browsers
+npx playwright install-deps      # Install system deps (may need sudo)
+```
+
+Run: `pnpm run test:browser`
+
+Tests skip gracefully if browser dependencies aren't installed.
 
 ## VPS / Remote Deployment
 

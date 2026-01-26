@@ -18,6 +18,7 @@
     "test:ui": "vitest run",
     "test:ui:watch": "vitest",
     "test:ui:cov": "vitest run --coverage",
+    "test:browser": "npx playwright test",
     "test:cov": "pnpm run test:server:cov && pnpm run test:ui:cov",
     "setup:test": "npx playwright install chromium",
     "ui-test": "tsx scripts/ui-test.ts"

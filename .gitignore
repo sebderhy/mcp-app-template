@@ -43,3 +43,7 @@ pnpm-debug.log*
 # Vite
 .vite/
 .vite-react/
+
+# Playwright
+playwright-report/
+test-results/
