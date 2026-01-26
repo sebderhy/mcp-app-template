@@ -4,17 +4,26 @@
 
 ## Why This Template?
 
-Most templates assume a human developer. This one is designed for AI agents:
+Most templates assume a human developer. This one is designed for AI agents to work as much as possible autonomously:
 
-1. **Zero-config testing** - Simulator works instantly with no API key (free for dev/testing via [Puter.js](https://puter.com))
-2. **Automated UI testing** - AI agents can test widgets visually using Playwright screenshots
-3. **Coding Agent Onboarding** - `AGENTS.md` explains the codebase, so AI agents know where things are
-4. **MCP best practices** - Built following [MCP server guidelines](docs/mcp-development-guidelines.md) for tool naming, descriptions, and error handling
-5. **Orthogonal test suite** - 282 tests that pass regardless of what app you build
-6. **Local ChatGPT Simulator** - Test widgets locally without deploying to ChatGPT
-7. **Working examples** - 8 widget examples to learn from or build upon
+### 1. Orthogonal Test Suite
+340 tests verify infrastructure (MCP compliance, SDK format, accessibility, browser rendering) - not your business logic. Modify widgets, change data, add features - tests should still pass. Automated grading generates reports with actionable `FIX:` hints and references to steer coding agents on what to change.
 
-The tests verify *infrastructure*, not business logic. When you (or your AI agent) modify widgets, add features, or change data - the tests still pass. Run `pnpm run test` anytime to verify everything works, without connecting to ChatGPT.
+### 2. Hierarchical Documentation
+`AGENTS.md` for quick onboarding → `docs/README.md` for a step-by-step building guide → deep docs covering MCP best practices, widget patterns, and OpenAI's complete SDK reference (`llms-full.txt`).
+
+### 3. Automated Visual Testing
+AI agents can test widgets and capture screenshots - no API key required:
+```bash
+pnpm run ui-test --widget carousel  # Renders widget, saves screenshot
+```
+Agents read `/tmp/ui-test/screenshot.png` to verify their changes work.
+
+### 4. Zero-Config Simulator
+Local ChatGPT simulator for manual testing - works instantly without API key via [Puter.js](https://puter.com). Add an OpenAI key for AI-in-the-loop testing.
+
+### 5. Working Examples
+9 production-ready widgets demonstrating state management, theming, 3D visualization, drag-and-drop, and more.
 
 ## Demo
 
@@ -48,7 +57,7 @@ pnpm run test
 
 Open the simulator: **http://localhost:8000/assets/simulator.html**
 
-That's it! No API key required for testing - the simulator uses [Puter.js](https://puter.com) for free AI in development.
+That's it! The simulator uses [Puter.js](https://puter.com) for free AI - no API key required for manual testing.
 
 ## Local Simulator
 
@@ -65,9 +74,9 @@ pnpm run server
 ```
 
 The simulator automatically detects when no API key is configured and uses [Puter.js](https://puter.com) - a free, browser-based AI service. This is perfect for:
-- AI coding agents testing without credentials
 - Quick prototyping sessions
 - Demos and presentations
+- Manual testing without credentials
 
 Note: Puter.js is only used in the local simulator. In production, your app connects to real ChatGPT which provides the AI - no Puter.js involved.
 
@@ -134,6 +143,7 @@ User Prompt → ChatGPT → MCP Tool Call → Python Server → Widget renders i
 | `solar-system` | 3D visualization (Three.js) |
 | `todo` | Task manager with drag-and-drop |
 | `shop` | E-commerce cart flow |
+| `travel-map` | Interactive map with markers |
 
 Try them: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
 
@@ -235,18 +245,18 @@ pnpm run setup:test   # Install Playwright browsers (~150MB)
 
 ### Two Testing Modes
 
-**1. AI Mode (with OpenAI API key)** - Full AI-in-the-loop testing:
-```bash
-pnpm run ui-test "Show me the carousel widget"
-```
-The AI receives your prompt, decides which widget to show, and the tool captures the result.
-
-**2. Direct Mode (no API key)** - Test specific widgets directly:
+**1. Direct Mode (no API key)** - Test specific widgets directly:
 ```bash
 pnpm run ui-test --widget carousel      # Calls show_carousel (adds show_ prefix)
 pnpm run ui-test --tool my_custom_tool  # Calls exact tool name (no prefix)
 ```
-Use `--widget` for standard `show_*` tools, or `--tool` for tools with custom naming conventions.
+Use `--widget` for standard `show_*` tools, or `--tool` for tools with custom naming conventions. This is the recommended mode for AI coding agents.
+
+**2. AI-in-the-loop Mode (requires OpenAI API key)** - Full simulator with AI:
+```bash
+pnpm run ui-test "Show me the carousel widget"
+```
+The AI receives your prompt, decides which widget to show, and the tool captures the result.
 
 ### Output
 
