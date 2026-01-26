@@ -2,7 +2,7 @@
 /**
  * UI Test Tool for AI Agents
  *
- * Enables AI coding agents (like Claude Code) to autonomously test the
+ * Enables Coding Agents (Claude Code, Codex, Cursor, etc.) to autonomously test the
  * ChatGPT simulator by sending messages and capturing screenshots.
  *
  * Two modes:

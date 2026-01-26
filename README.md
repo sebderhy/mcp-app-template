@@ -1,6 +1,6 @@
 # ChatGPT App Template
 
-A template for building ChatGPT Apps, designed to be edited seamlessly with AI coding agents like Claude Code (CLAUDE.md file included).
+A template for building ChatGPT Apps, designed to be edited seamlessly with Coding Agents (Claude Code, Codex, Cursor, etc.).
 
 ## Why This Template?
 
@@ -8,8 +8,8 @@ A template for building ChatGPT Apps, designed to be edited seamlessly with AI c
 
 1. **Zero-config testing** - Simulator works instantly with no API key (free for dev/testing via [Puter.js](https://puter.com))
 2. **Automated UI testing** - AI agents can test widgets visually using Playwright screenshots
-3. **Coding Agent Onboarding** - `CLAUDE.md` explains the codebase, so AI agents know where things are
-4. **MCP best practices** - Built following [MCP server guidelines](docs/mcp-server-guidelines-for-ai-agents.md) for tool naming, descriptions, and error handling
+3. **Coding Agent Onboarding** - `AGENTS.md` explains the codebase, so AI agents know where things are
+4. **MCP best practices** - Built following [MCP server guidelines](docs/mcp-development-guidelines.md) for tool naming, descriptions, and error handling
 5. **Orthogonal test suite** - 282 tests that pass regardless of what app you build
 6. **Local ChatGPT Simulator** - Test widgets locally without deploying to ChatGPT
 7. **Working examples** - 8 widget examples to learn from or build upon
@@ -141,11 +141,11 @@ Try them: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
 
 1. Create `src/my-widget/index.tsx` (entry point must target `my-widget-root`)
 2. Add `"my-widget"` to the `targets` array in `build-all.mts`
-3. Add a tool handler in `server/main.py` following the [MCP server guidelines](docs/mcp-server-guidelines-for-ai-agents.md)
+3. Add a tool handler in `server/main.py` following the [MCP server guidelines](docs/mcp-development-guidelines.md)
 4. Run `pnpm run build && pnpm run test`
 5. Test in the simulator: `http://localhost:8000/assets/simulator.html`
 
-When customizing this template for your own app, follow the guidelines in [`docs/mcp-server-guidelines-for-ai-agents.md`](docs/mcp-server-guidelines-for-ai-agents.md) for tool naming conventions, descriptions, and error handling best practices.
+When customizing this template for your own app, follow the guidelines in [`docs/mcp-development-guidelines.md`](docs/mcp-development-guidelines.md) for tool naming conventions, descriptions, and error handling best practices.
 
 ## Testing
 
@@ -191,10 +191,10 @@ Tests skip gracefully if browser dependencies aren't installed, so they won't br
 The test suite includes automated grading against best practices. After running tests, check these reports:
 
 **MCP Best Practices** (`server/tests/mcp_best_practices_report.txt`):
-Grades against [MCP server guidelines](docs/mcp-server-guidelines-for-ai-agents.md) - tool naming, descriptions, error handling.
+Grades against [MCP server guidelines](docs/mcp-development-guidelines.md) - tool naming, descriptions, error handling.
 
 **ChatGPT App Guidelines** (`server/tests/chatgpt_app_guidelines_report.txt`):
-Grades against [OpenAI's app design guidance](docs/chatgpt-apps-development-guidelines.md) - Know/Do/Show value, model-friendly outputs, ecosystem fit.
+Grades against [OpenAI's app design guidance](docs/what-makes-a-great-chatgpt-app.md) - Know/Do/Show value, model-friendly outputs, ecosystem fit.
 
 Example report:
 ```
@@ -253,12 +253,12 @@ AI agents can read the screenshot to verify widgets rendered correctly:
 Read tool → /tmp/ui-test/screenshot.png
 ```
 
-### Example Workflow (Claude Code)
+### Example Workflow (Coding Agents)
 
 ```
 User: "Add a new stats card to the dashboard"
 
-Claude Code:
+Coding Agent (Claude Code, Codex, Cursor, etc.):
 1. Modifies src/dashboard/index.tsx
 2. Runs pnpm run build
 3. Runs pnpm run ui-test --widget dashboard
@@ -323,7 +323,7 @@ Deploy the Python server to any platform (Fly.io, Render, Railway, Cloud Run, et
 
 ## Resources
 
-- [What Makes a Great ChatGPT App](https://developers.openai.com/blog/what-makes-a-great-chatgpt-app/) - OpenAI's official guidance (local copy: [docs/chatgpt-apps-development-guidelines.md](docs/chatgpt-apps-development-guidelines.md))
+- [What Makes a Great ChatGPT App](https://developers.openai.com/blog/what-makes-a-great-chatgpt-app/) - OpenAI's official guidance (local copy: [docs/what-makes-a-great-chatgpt-app.md](docs/what-makes-a-great-chatgpt-app.md))
 - [Apps SDK Documentation](https://developers.openai.com/apps-sdk)
 - [MCP Protocol](https://modelcontextprotocol.io/)
 - [Apps SDK UI Components](https://openai.github.io/apps-sdk-ui/)
