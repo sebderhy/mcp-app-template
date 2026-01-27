@@ -23,9 +23,16 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import mcp.types as types
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+# Load .env file at startup (for BASE_URL and other config)
+_env_path = Path(__file__).parent / ".env"
+if not _env_path.exists():
+    _env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
 # =============================================================================
 # CONFIGURATION
