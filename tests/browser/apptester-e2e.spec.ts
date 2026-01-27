@@ -19,7 +19,7 @@
 
 import { test, expect, chromium, Browser } from "@playwright/test";
 import { spawn, ChildProcess } from "child_process";
-import { setTimeout } from "timers/promises";
+import { setTimeout as delay } from "timers/promises";
 
 const SERVER_URL = "http://localhost:8000";
 
@@ -49,7 +49,7 @@ async function startServer(): Promise<ChildProcess> {
     });
 
     let started = false;
-    const timeout = setTimeout(() => {
+    const timeout = globalThis.setTimeout(() => {
       if (!started) {
         reject(new Error("Server failed to start within 10 seconds"));
       }
@@ -59,7 +59,7 @@ async function startServer(): Promise<ChildProcess> {
       const output = data.toString();
       if (output.includes("Application startup complete") && !started) {
         started = true;
-        clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         resolve(proc);
       }
     });
@@ -68,13 +68,13 @@ async function startServer(): Promise<ChildProcess> {
       const output = data.toString();
       if (output.includes("Application startup complete") && !started) {
         started = true;
-        clearTimeout(timeout);
+        globalThis.clearTimeout(timeout);
         resolve(proc);
       }
     });
 
     proc.on("error", (err) => {
-      clearTimeout(timeout);
+      globalThis.clearTimeout(timeout);
       reject(err);
     });
   });
@@ -100,7 +100,7 @@ test.beforeAll(async () => {
   if (!(await isServerRunning())) {
     serverProcess = await startServer();
     // Give server extra time to fully initialize
-    await setTimeout(2000);
+    await delay(2000);
   }
 });
 
@@ -134,7 +134,16 @@ test("apptester loads and renders widgets", async () => {
     const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
     const page = await context.newPage();
 
-    // Collect console errors
+    // Track failed resource loads (CSS/JS)
+    const failedResources: string[] = [];
+    page.on('requestfailed', (request) => {
+      const url = request.url();
+      if (url.includes('.js') || url.includes('.css')) {
+        failedResources.push(`${request.failure()?.errorText}: ${url}`);
+      }
+    });
+
+    // Track console errors
     const consoleErrors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
@@ -145,47 +154,41 @@ test("apptester loads and renders widgets", async () => {
     // 1. Load the apptester
     await page.goto(`${SERVER_URL}/assets/apptester.html`, { waitUntil: "load" });
 
-    // 2. Wait for React app to mount - look for the root div to have children
+    // 2. Wait for React app to mount
     await page.waitForFunction(() => {
       const root = document.getElementById('apptester-root');
       return root && root.children.length > 0;
     }, { timeout: 10000 });
 
-    // 3. Wait for the "Direct" mode button and click it (app defaults to chat mode)
+    // 3. Switch to Direct mode
     const directButton = page.locator('button:has-text("Direct")');
     await directButton.waitFor({ state: 'visible', timeout: 5000 });
     await directButton.click();
 
-    // 4. Wait for tools select to appear (only visible in direct mode)
+    // 4. Wait for tools select
     await page.waitForSelector('select', { timeout: 10000 });
-
-    if (consoleErrors.length > 0) {
-      console.log('Console errors detected:', consoleErrors);
-    }
-
-    // 5. Wait for tools to be fetched
     await page.waitForTimeout(1000);
 
-    // 6. Get available tools from the select dropdown
+    // 5. Select first real tool
     const options = await page.locator('select option').allTextContents();
-    expect(options.length).toBeGreaterThan(1); // At least placeholder + 1 tool
-
-    // 5. Select first real tool (skip "-- Select a tool --" placeholder)
+    expect(options.length).toBeGreaterThan(1);
     const firstTool = options.find((opt) => opt && !opt.includes("--") && opt.trim().length > 0);
     expect(firstTool).toBeTruthy();
-
     await page.locator('select').selectOption({ label: firstTool! });
     await page.waitForTimeout(500);
 
-    // 6. Click "Invoke Tool" button
+    // 6. Click Invoke
     const invokeButton = page.locator('button:has-text("Invoke Tool")');
     await expect(invokeButton).toBeVisible();
     await invokeButton.click();
 
-    // 7. Wait for widget to load in iframe
-    await page.waitForTimeout(2000); // Give widget time to render
+    // 7. Wait for widget to load
+    await page.waitForTimeout(3000);
 
-    // 8. Check that iframe exists and has content
+    // 8. STRICT CHECK: Fail if any widget resources failed to load
+    expect(failedResources, `Widget resources failed to load: ${failedResources.join(', ')}`).toHaveLength(0);
+
+    // 9. Check iframe exists and has content
     const iframe = page.frameLocator('iframe[title*="MCP"], iframe[sandbox*="allow-scripts"]').first();
 
     // 9. Verify widget rendered something (not blank)
