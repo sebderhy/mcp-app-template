@@ -1,14 +1,15 @@
 /**
- * Local ChatGPT Simulator
+ * MCP App Tester
  *
- * A development tool that simulates ChatGPT's widget rendering environment.
+ * A development tool for testing MCP Apps with interactive UIs.
+ * Implements the host-side of the MCP Apps protocol.
  * Uses OpenAI's API with MCP tools when OPENAI_API_KEY is set,
  * or falls back to Puter.js (free, no API key needed) otherwise.
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Plus, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench } from "lucide-react";
-import WidgetRenderer from "./WidgetRenderer";
+import McpAppRenderer from "./McpAppRenderer";
 
 // Puter.js types
 declare global {
@@ -78,6 +79,22 @@ const EXAMPLE_PROMPTS = [
   "Show me the solar system",
   "Display a shopping cart",
 ];
+
+// Handle tool calls from within the app
+const handleToolCallFromApp = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+  const response = await fetch("/tools/call", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, arguments: args }),
+  });
+
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+
+  return data.tool_output;
+};
 
 const PUTER_MODEL = "gpt-4o-mini"; // Free model via Puter.js
 
@@ -526,7 +543,7 @@ After calling a tool, provide a brief helpful response about what you're showing
             <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "150ms" }} />
             <div className="w-3 h-3 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
-          <p className={isDark ? "text-gray-400" : "text-gray-500"}>Initializing simulator...</p>
+          <p className={isDark ? "text-gray-400" : "text-gray-500"}>Initializing MCP App Tester...</p>
         </div>
       </div>
     );
@@ -554,7 +571,7 @@ After calling a tool, provide a brief helpful response about what you're showing
           </button>
           <div className="min-w-0">
             <h1 className={`text-base sm:text-lg font-semibold truncate ${isDark ? "text-white" : "text-gray-900"}`}>
-              <span className="hidden sm:inline">ChatGPT </span>Simulator
+              <span className="hidden sm:inline">MCP </span>App Tester
             </h1>
             {/* Mode indicator - hidden on very small screens */}
             <div className="hidden xs:flex items-center gap-1.5">
@@ -760,11 +777,12 @@ After calling a tool, provide a brief helpful response about what you're showing
                       </button>
                     </div>
                     <div className="h-[300px] sm:h-[500px]">
-                      <WidgetRenderer
+                      <McpAppRenderer
                         html={directWidget.html}
                         toolOutput={directWidget.toolOutput}
                         theme={theme}
                         onMessage={handleWidgetMessage}
+                        onToolCall={handleToolCallFromApp}
                       />
                     </div>
                   </>
@@ -790,10 +808,10 @@ After calling a tool, provide a brief helpful response about what you're showing
             {messages.length === 0 && (
               <div className="text-center py-8 sm:py-12 px-2">
                 <h2 className={`text-xl sm:text-2xl font-semibold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
-                  <span className="hidden sm:inline">ChatGPT </span>Widget Simulator
+                  <span className="hidden sm:inline">MCP </span>App Tester
                 </h2>
                 <p className={`text-sm mb-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                  Test your widgets locally before deploying
+                  Test your MCP Apps locally before deploying
                 </p>
                 {agentMode === "puter" && (
                   <p className={`text-xs mb-4 sm:mb-6 ${isDark ? "text-green-400" : "text-green-600"}`}>
@@ -867,11 +885,12 @@ After calling a tool, provide a brief helpful response about what you're showing
                   </div>
                   {/* Widget Content */}
                   <div className="h-[400px]">
-                    <WidgetRenderer
+                    <McpAppRenderer
                       html={msg.widget.html}
                       toolOutput={msg.widget.toolOutput}
                       theme={theme}
                       onMessage={handleWidgetMessage}
+                      onToolCall={handleToolCallFromApp}
                     />
                   </div>
                 </div>
@@ -947,7 +966,7 @@ After calling a tool, provide a brief helpful response about what you're showing
           <p className={`text-xs text-center mt-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
             {agentMode === "puter"
               ? "Powered by Puter.js - free, no API key needed"
-              : "Local simulator for ChatGPT widget development"}
+              : "Local MCP App tester for development"}
           </p>
         </div>
       </div>
@@ -981,12 +1000,13 @@ After calling a tool, provide a brief helpful response about what you're showing
             </div>
             {/* Modal Content */}
             <div className="flex-1 overflow-hidden">
-              <WidgetRenderer
+              <McpAppRenderer
                 html={expandedWidget.html}
                 toolOutput={expandedWidget.toolOutput}
                 theme={theme}
                 displayMode="fullscreen"
                 onMessage={handleWidgetMessage}
+                onToolCall={handleToolCallFromApp}
               />
             </div>
           </div>

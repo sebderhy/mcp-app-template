@@ -1,19 +1,19 @@
 """
-Tests for OpenAI Apps SDK format compliance.
+Tests for MCP Apps protocol compliance.
 
-These tests verify that tool responses and resources comply with OpenAI's
-Apps SDK requirements as documented at:
-https://developers.openai.com/apps-sdk/build/mcp-server
+These tests verify that tool responses and resources comply with the MCP Apps
+extension specification as documented at:
+https://modelcontextprotocol.io/docs/extensions/apps
 
 Key requirements tested:
 1. Tool responses include structuredContent (for widget data)
 2. Tool responses include content with TextContent (for model narration)
-3. Resources use mimeType "text/html+skybridge" (required for widgets)
-4. Tools have required _meta fields for OpenAI integration
-5. Template URIs follow the ui://widget/ convention
+3. Resources use standard mimeType "text/html"
+4. Tools have required _meta.ui fields for MCP Apps integration
+5. Template URIs follow the ui:// scheme convention
 
-These tests help catch issues that would cause widgets to fail in ChatGPT
-before you go through the manual testing process.
+These tests help catch issues that would cause apps to fail in MCP hosts
+(Claude, ChatGPT, VS Code, etc.) before deployment.
 """
 
 import pytest
@@ -26,11 +26,11 @@ import mcp.types as types
 
 
 class TestToolResponseFormat:
-    """Tests that tool responses comply with OpenAI format requirements."""
+    """Tests that tool responses comply with MCP Apps format requirements."""
 
     @pytest.mark.asyncio
     async def test_all_tools_return_structured_content(self):
-        """Every tool must return structuredContent for the widget to read."""
+        """Every tool must return structuredContent for the app to read."""
         from main import handle_call_tool, WIDGETS
 
         for widget in WIDGETS:
@@ -46,7 +46,7 @@ class TestToolResponseFormat:
 
             assert result.root.structuredContent is not None, (
                 f"Tool '{widget.identifier}' must return structuredContent. "
-                "The widget reads data from window.openai.toolOutput which comes from structuredContent."
+                "MCP Apps receive data via the tool result."
             )
 
     @pytest.mark.asyncio
@@ -103,19 +103,19 @@ class TestToolResponseFormat:
 
 
 class TestResourceMimeType:
-    """Tests that resources use correct MIME type for ChatGPT widgets."""
+    """Tests that resources use correct MIME type for MCP Apps."""
 
     @pytest.mark.asyncio
-    async def test_all_resources_use_skybridge_mime_type(self):
-        """Resources must use 'text/html+skybridge' MIME type."""
+    async def test_all_resources_use_html_mime_type(self):
+        """Resources must use 'text/html' MIME type for MCP Apps."""
         from main import list_resources
 
         resources = await list_resources()
 
         for resource in resources:
-            assert resource.mimeType == "text/html+skybridge", (
+            assert resource.mimeType == "text/html", (
                 f"Resource '{resource.name}' uses mimeType '{resource.mimeType}'. "
-                "ChatGPT widgets require 'text/html+skybridge' to enable the widget runtime."
+                "MCP Apps use 'text/html' for UI resources."
             )
 
     @pytest.mark.asyncio
@@ -134,22 +134,22 @@ class TestResourceMimeType:
             assert len(result.root.contents) == 1, (
                 f"Widget '{widget.identifier}' resource should return exactly one content item."
             )
-            assert result.root.contents[0].mimeType == "text/html+skybridge", (
-                f"Widget '{widget.identifier}' resource content must have mimeType 'text/html+skybridge'."
+            assert result.root.contents[0].mimeType == "text/html", (
+                f"Widget '{widget.identifier}' resource content must have mimeType 'text/html'."
             )
 
 
 class TestTemplateUriConvention:
-    """Tests that template URIs follow OpenAI conventions."""
+    """Tests that template URIs follow MCP Apps conventions."""
 
-    def test_all_widgets_use_ui_widget_uri_scheme(self):
-        """Widget template URIs should follow ui://widget/ convention."""
+    def test_all_widgets_use_ui_scheme(self):
+        """Widget template URIs should use the ui:// scheme."""
         from main import WIDGETS
 
         for widget in WIDGETS:
-            assert widget.template_uri.startswith("ui://widget/"), (
+            assert widget.template_uri.startswith("ui://"), (
                 f"Widget '{widget.identifier}' template_uri '{widget.template_uri}' "
-                "should start with 'ui://widget/' per OpenAI convention."
+                "should start with 'ui://' per MCP Apps convention."
             )
 
     def test_template_uri_ends_with_html(self):
@@ -164,53 +164,25 @@ class TestTemplateUriConvention:
 
 
 class TestToolMetadataRequirements:
-    """Tests that tools have required OpenAI metadata."""
+    """Tests that tools have required MCP Apps metadata."""
 
-    def test_get_tool_meta_includes_output_template(self):
-        """Tool metadata must include openai/outputTemplate."""
+    def test_get_tool_meta_includes_ui_resource_uri(self):
+        """Tool metadata must include ui.resourceUri."""
         from main import get_tool_meta, WIDGETS
 
         for widget in WIDGETS:
             meta = get_tool_meta(widget)
 
-            assert "openai/outputTemplate" in meta, (
-                f"Widget '{widget.identifier}' metadata missing 'openai/outputTemplate'. "
-                "This links the tool to its widget HTML template."
+            assert "ui" in meta, (
+                f"Widget '{widget.identifier}' metadata missing 'ui' section. "
+                "This is required for MCP Apps integration."
             )
-            assert meta["openai/outputTemplate"] == widget.template_uri, (
-                f"Widget '{widget.identifier}' outputTemplate doesn't match template_uri."
+            assert "resourceUri" in meta["ui"], (
+                f"Widget '{widget.identifier}' metadata missing 'ui.resourceUri'. "
+                "This links the tool to its UI resource."
             )
-
-    def test_get_tool_meta_includes_invocation_messages(self):
-        """Tool metadata must include invoking/invoked messages."""
-        from main import get_tool_meta, WIDGETS
-
-        for widget in WIDGETS:
-            meta = get_tool_meta(widget)
-
-            assert "openai/toolInvocation/invoking" in meta, (
-                f"Widget '{widget.identifier}' metadata missing 'openai/toolInvocation/invoking'. "
-                "This message shows while the tool is loading."
-            )
-            assert "openai/toolInvocation/invoked" in meta, (
-                f"Widget '{widget.identifier}' metadata missing 'openai/toolInvocation/invoked'. "
-                "This message shows when the tool completes."
-            )
-
-    def test_get_tool_meta_includes_widget_flags(self):
-        """Tool metadata should include widget capability flags."""
-        from main import get_tool_meta, WIDGETS
-
-        for widget in WIDGETS:
-            meta = get_tool_meta(widget)
-
-            assert "openai/widgetAccessible" in meta, (
-                f"Widget '{widget.identifier}' metadata missing 'openai/widgetAccessible'. "
-                "Set to true if widget should be able to call other tools."
-            )
-            assert "openai/resultCanProduceWidget" in meta, (
-                f"Widget '{widget.identifier}' metadata missing 'openai/resultCanProduceWidget'. "
-                "Set to true to indicate this tool renders a widget."
+            assert meta["ui"]["resourceUri"] == widget.template_uri, (
+                f"Widget '{widget.identifier}' ui.resourceUri doesn't match template_uri."
             )
 
     def test_invocation_messages_are_non_empty(self):

@@ -52,14 +52,12 @@ class TestListTools:
         from main import get_tool_meta, WIDGETS
 
         # Test that get_tool_meta returns correct structure for each widget
-        # (The actual attachment to Tool is handled by MCP library)
+        # MCP Apps uses _meta.ui.resourceUri to link tools to their UI
         for widget in WIDGETS:
             meta = get_tool_meta(widget)
-            assert "openai/outputTemplate" in meta, "Tool must have outputTemplate"
-            assert "openai/toolInvocation/invoking" in meta, "Tool must have invoking message"
-            assert "openai/toolInvocation/invoked" in meta, "Tool must have invoked message"
-            assert meta["openai/widgetAccessible"] is True
-            assert meta["openai/resultCanProduceWidget"] is True
+            assert "ui" in meta, "Tool must have ui metadata section"
+            assert "resourceUri" in meta["ui"], "Tool must have ui.resourceUri"
+            assert meta["ui"]["resourceUri"] == widget.template_uri
 
     @pytest.mark.asyncio
     async def test_tools_have_correct_annotations(self):
@@ -289,14 +287,13 @@ class TestMetadataHelpers:
 
         meta = get_tool_meta(widget)
 
-        assert "openai/outputTemplate" in meta
-        assert "openai/toolInvocation/invoking" in meta
-        assert "openai/toolInvocation/invoked" in meta
-        assert "openai/widgetAccessible" in meta
-        assert "openai/resultCanProduceWidget" in meta
+        # MCP Apps uses ui.resourceUri to link tools to UI resources
+        assert "ui" in meta
+        assert "resourceUri" in meta["ui"]
+        assert meta["ui"]["resourceUri"] == widget.template_uri
 
-    def test_get_invocation_meta_returns_invocation_keys(self):
-        """get_invocation_meta returns invocation metadata."""
+    def test_get_invocation_meta_returns_ui_metadata(self):
+        """get_invocation_meta returns UI metadata."""
         from main import get_invocation_meta, Widget
 
         widget = Widget(
@@ -311,7 +308,6 @@ class TestMetadataHelpers:
 
         meta = get_invocation_meta(widget)
 
-        assert "openai/toolInvocation/invoking" in meta
-        assert "openai/toolInvocation/invoked" in meta
-        # Should NOT include outputTemplate (that's only for tool definition)
-        assert "openai/outputTemplate" not in meta
+        # MCP Apps uses ui.resourceUri for all UI-related metadata
+        assert "ui" in meta
+        assert "resourceUri" in meta["ui"]

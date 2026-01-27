@@ -44,7 +44,8 @@ class Widget:
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
-MIME_TYPE = "text/html+skybridge"
+# MCP Apps MIME type for UI resources
+MIME_TYPE = "text/html"
 
 
 # =============================================================================
@@ -714,19 +715,24 @@ mcp = FastMCP(name="boilerplate-server", instructions=SERVER_INSTRUCTIONS, state
 
 
 def get_tool_meta(widget: Widget) -> Dict[str, Any]:
+    """Return MCP Apps metadata for a tool.
+
+    The key field is `ui.resourceUri` which links the tool to its UI resource.
+    This follows the MCP Apps protocol specification.
+    """
     return {
-        "openai/outputTemplate": widget.template_uri,
-        "openai/toolInvocation/invoking": widget.invoking,
-        "openai/toolInvocation/invoked": widget.invoked,
-        "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
+        "ui": {
+            "resourceUri": widget.template_uri,
+        },
     }
 
 
 def get_invocation_meta(widget: Widget) -> Dict[str, Any]:
+    """Return metadata for tool invocation results."""
     return {
-        "openai/toolInvocation/invoking": widget.invoking,
-        "openai/toolInvocation/invoked": widget.invoked,
+        "ui": {
+            "resourceUri": widget.template_uri,
+        },
     }
 
 

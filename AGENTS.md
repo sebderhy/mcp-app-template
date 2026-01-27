@@ -1,6 +1,6 @@
 # AGENTS.md
 
-ChatGPT App template: React widgets + Python MCP server. Widgets render inside ChatGPT via the Apps SDK.
+MCP App template: React widgets + Python MCP server. Apps render in MCP hosts (Claude, ChatGPT, VS Code, Goose) via the MCP Apps protocol.
 
 ## Commands
 
@@ -22,7 +22,7 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 | Path | Purpose |
 |------|---------|
 | `src/{widget}/index.tsx` | Widget entry point |
-| `src/*.ts` | Shared hooks (useWidgetProps, useTheme) |
+| `src/*.ts` | Shared hooks (useMcpApp, useWidgetProps, useTheme) |
 | `server/main.py` | MCP server - tools and handlers |
 | `build-all.mts:18` | Widget targets (add new widgets here) |
 | `tests/*.test.ts` | UI unit tests (Vitest) |
@@ -37,7 +37,7 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 - **Theme support:** Widgets MUST work in both light and dark modes
 - **Test after changes:** ALWAYS run `pnpm run test` after any code change
 - **MCP best practices:** Tests grade the server against MCP guidelines (run `pnpm run test` to generate `server/tests/mcp_best_practices_report.txt`)
-- **ChatGPT app guidelines:** Tests grade against OpenAI's app design guidance (generates `server/tests/chatgpt_app_guidelines_report.txt`)
+- **MCP Apps compliance:** Tests grade against MCP Apps protocol (generates `server/tests/mcp_apps_compliance_report.txt`)
 - **Output quality:** Tests grade tool output quality - schema stability, null handling, response size (generates `server/tests/output_quality_report.txt`)
 
 ## Documentation
@@ -46,10 +46,9 @@ Read these before building:
 
 - `docs/README.md` - Step-by-step walkthrough for adding widgets (start here)
 - `docs/what-makes-a-great-chatgpt-app.md` - Know/Do/Show framework, capability design, conversation patterns
-- `docs/widget-development.md` - Project-specific hooks (`useWidgetProps`, `useTheme`), patterns
+- `docs/widget-development.md` - Project-specific hooks (`useMcpApp`, `useWidgetProps`, `useTheme`), patterns
 - `docs/mcp-development-guidelines.md` - MCP best practices (tool naming, descriptions, error handling)
-- `docs/openai-apps-sdk-llms.txt` - OpenAI Apps SDK index (lightweight map of all docs)
-- `docs/openai-apps-sdk-llms-full.txt` - Full OpenAI Apps SDK documentation
+- MCP Apps docs: https://modelcontextprotocol.io/docs/extensions/apps
 
 ## Adding a Widget
 
@@ -57,6 +56,12 @@ Read these before building:
 2. Add `"my-widget"` to `build-all.mts:18`
 3. Add Input model, Widget config, and handler in `server/main.py`
 4. Run `pnpm run build && pnpm run test && pnpm run ui-test --widget my-widget`
+
+## ⚠️ DO NOT Modify Infrastructure
+
+**Never modify or delete:** `src/apptester/`, `src/use-*.ts` hooks, `tests/browser/apptester-e2e.spec.ts`
+
+These are the testing framework (not example widgets). Modifying them breaks the entire development workflow even if tests pass. Only modify: widget folders (`src/my-widget/`), `server/main.py` handlers, and `build-all.mts` targets array.
 
 ## Finalizing Your App
 
@@ -70,14 +75,32 @@ After building your widgets, remove the template examples:
 
 See `docs/README.md` for the detailed cleanup checklist.
 
-## Local Simulator
+## Local App Tester
 
 ```bash
 pnpm run build && pnpm run server
-# Open http://localhost:8000/assets/simulator.html
+# Open http://localhost:8000/assets/apptester.html
 ```
 
 No API key required - uses Puter.js fallback for testing.
+
+## Testing with MCP Hosts
+
+### Claude (Web or Desktop)
+Expose your local server via a tunnel, then add as a custom connector:
+```bash
+pnpm run server  # Terminal 1
+npx cloudflared tunnel --url http://localhost:8000  # Terminal 2
+```
+Add the tunnel URL as a custom connector in Claude settings.
+
+### MCP Apps Basic Host
+Clone the ext-apps repo and run the basic-host test interface:
+```bash
+git clone https://github.com/modelcontextprotocol/ext-apps
+cd ext-apps/examples/basic-host
+npm install && SERVERS='["http://localhost:8000"]' npm start
+```
 
 ## Browser Compliance Tests
 

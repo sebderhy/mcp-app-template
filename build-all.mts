@@ -25,7 +25,7 @@ const targets: string[] = [
   "todo",
   "shop",
   "travel-map",
-  "simulator",
+  "apptester",
 ];
 const builtNames: string[] = [];
 
@@ -183,7 +183,7 @@ for (const name of builtNames) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${name === "simulator" ? "ChatGPT Widget Simulator" : name}</title>
+  <title>${name === "apptester" ? "MCP App Tester" : name}</title>
   <script type="module" src="./${name}-${h}.js"></script>
   <link rel="stylesheet" href="./${name}-${h}.css">
 </head>
