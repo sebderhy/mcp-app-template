@@ -38,7 +38,12 @@ function getWidgetTargets(): string[] {
     .filter((s) => s.length > 0);
 }
 
-const widgets = getWidgetTargets();
+// Infrastructure targets that aren't normal widgets (no React root element)
+const INFRASTRUCTURE_TARGETS = ["sandbox-proxy"];
+
+const widgets = getWidgetTargets().filter(
+  (w) => !INFRASTRUCTURE_TARGETS.includes(w)
+);
 const srcDir = path.resolve("src");
 
 describe("Widget File Structure", () => {

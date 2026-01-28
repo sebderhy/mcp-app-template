@@ -26,6 +26,7 @@ const targets: string[] = [
   "shop",
   "travel-map",
   "apptester",
+  "sandbox-proxy",
 ];
 const builtNames: string[] = [];
 

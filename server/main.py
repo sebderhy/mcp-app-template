@@ -1189,7 +1189,6 @@ try:
 except Exception:
     pass
 
-
 # =============================================================================
 # SIMULATOR CHAT API
 # =============================================================================
@@ -1394,6 +1393,91 @@ app.routes.append(Route("/tools/call", tool_call_endpoint, methods=["POST"]))
 
 
 # =============================================================================
+# SANDBOX PROXY SERVER (Port 8001)
+# =============================================================================
+
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+
+
+class SandboxProxyHandler(SimpleHTTPRequestHandler):
+    """HTTP handler that serves sandbox proxy with CSP headers.
+
+    This runs on a different port (8001) to provide origin isolation.
+    The CSP headers are applied based on query parameters or defaults.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Serve from assets directory
+        super().__init__(*args, directory=str(ASSETS_DIR), **kwargs)
+
+    def end_headers(self):
+        # Parse CSP from query params
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+
+        # Build CSP directives
+        resource_domains = query.get("resourceDomains", [])
+        connect_domains = query.get("connectDomains", [])
+
+        # Default domains if not specified
+        csp_domains = get_csp_domains()
+        if not resource_domains:
+            resource_domains = csp_domains.get("resourceDomains", [])
+        if not connect_domains:
+            connect_domains = csp_domains.get("connectDomains", [])
+
+        # Build CSP string
+        resource_src = " ".join(resource_domains) if resource_domains else "'self'"
+        connect_src = " ".join(connect_domains) if connect_domains else "'self'"
+
+        csp = (
+            f"default-src 'self'; "
+            f"script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: {resource_src}; "
+            f"style-src 'self' 'unsafe-inline' {resource_src}; "
+            f"img-src 'self' data: blob: {resource_src}; "
+            f"font-src 'self' data: {resource_src}; "
+            f"connect-src 'self' {connect_src}; "
+            f"frame-src 'self' blob:; "
+            f"worker-src 'self' blob:;"
+        )
+
+        self.send_header("Content-Security-Policy", csp)
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        """Handle CORS preflight requests."""
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        """Prefix log messages to distinguish from main server."""
+        print(f"[Sandbox:8001] {args[0]}")
+
+
+def start_sandbox_server(port: int = 8001) -> HTTPServer:
+    """Start the sandbox proxy server on a separate port.
+
+    This provides origin isolation for the MCP Apps sandbox.
+    """
+    server = HTTPServer(("0.0.0.0", port), SandboxProxyHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"Sandbox proxy server listening on http://0.0.0.0:{port}")
+    return server
+
+
+# Start sandbox proxy server immediately when module is loaded
+# This provides origin isolation for MCP Apps widgets
+_sandbox_server = start_sandbox_server(8001)
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1410,6 +1494,10 @@ if __name__ == "__main__":
     print("\nServer: http://0.0.0.0:8000")
     print("MCP endpoint: http://0.0.0.0:8000/mcp")
     print("Assets: http://0.0.0.0:8000/assets/")
+    print("Sandbox: http://0.0.0.0:8001 (origin isolation)")
     print("=" * 60 + "\n")
+
+    # Start sandbox proxy server on port 8001
+    start_sandbox_server(8001)
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
