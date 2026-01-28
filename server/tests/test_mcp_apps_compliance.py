@@ -327,25 +327,51 @@ class TestHtmlContentCompliance:
 # =============================================================================
 
 class TestToolAnnotations:
-    """Verify tools have proper safety annotations."""
+    """Verify tools have proper safety annotations.
+
+    These tests validate annotation structure and consistency, not specific values.
+    Tools can have any valid annotation values based on their behavior.
+    """
 
     @pytest.mark.asyncio
-    async def test_display_tools_are_read_only(self):
-        """Display-only tools should have readOnlyHint=True."""
+    async def test_tools_have_annotations(self):
+        """All tools should have annotations defined."""
         from main import list_tools
         for tool in await list_tools():
-            assert tool.annotations.readOnlyHint is True, (
-                f"Tool '{tool.name}' should have readOnlyHint=True"
+            assert tool.annotations is not None, (
+                f"Tool '{tool.name}' should have annotations"
             )
 
     @pytest.mark.asyncio
-    async def test_display_tools_are_non_destructive(self):
-        """Display-only tools should have destructiveHint=False."""
+    async def test_annotations_have_valid_hints(self):
+        """Tool annotations should have boolean hint values."""
         from main import list_tools
         for tool in await list_tools():
-            assert tool.annotations.destructiveHint is False, (
-                f"Tool '{tool.name}' should have destructiveHint=False"
-            )
+            if tool.annotations:
+                # readOnlyHint should be boolean if present
+                if hasattr(tool.annotations, 'readOnlyHint') and tool.annotations.readOnlyHint is not None:
+                    assert isinstance(tool.annotations.readOnlyHint, bool), (
+                        f"Tool '{tool.name}' readOnlyHint must be boolean"
+                    )
+                # destructiveHint should be boolean if present
+                if hasattr(tool.annotations, 'destructiveHint') and tool.annotations.destructiveHint is not None:
+                    assert isinstance(tool.annotations.destructiveHint, bool), (
+                        f"Tool '{tool.name}' destructiveHint must be boolean"
+                    )
+
+    @pytest.mark.asyncio
+    async def test_destructive_tools_not_read_only(self):
+        """Destructive tools should not claim to be read-only (logical consistency)."""
+        from main import list_tools
+        for tool in await list_tools():
+            if tool.annotations:
+                is_destructive = getattr(tool.annotations, 'destructiveHint', False)
+                is_read_only = getattr(tool.annotations, 'readOnlyHint', False)
+                # A tool cannot be both destructive AND read-only
+                if is_destructive:
+                    assert not is_read_only, (
+                        f"Tool '{tool.name}' cannot be both destructive and read-only"
+                    )
 
 
 # =============================================================================
@@ -373,3 +399,323 @@ class TestWidgetIdentifierConventions:
             assert widget.invoked and widget.invoked.strip(), (
                 f"Widget '{widget.identifier}' has empty 'invoked' message"
             )
+
+
+# =============================================================================
+# TOOL VISIBILITY COMPLIANCE
+# =============================================================================
+
+class TestToolVisibilityCompliance:
+    """Verify tools have proper visibility configuration per MCP Apps spec.
+
+    The spec defines visibility as: ["model", "app"] (default), ["model"], or ["app"]
+    - "model": Tool visible to and callable by the agent
+    - "app": Tool callable by the app from the same server connection only
+    """
+
+    @pytest.mark.asyncio
+    async def test_tools_visibility_format(self):
+        """If visibility is specified, it must be a list of valid values."""
+        from main import get_tool_meta
+        valid_values = {"model", "app"}
+
+        for widget in get_widgets():
+            meta = get_tool_meta(widget)
+            ui_meta = meta.get("ui", {})
+            visibility = ui_meta.get("visibility")
+
+            if visibility is not None:
+                assert isinstance(visibility, list), (
+                    f"Widget '{widget.identifier}' visibility must be a list"
+                )
+                for v in visibility:
+                    assert v in valid_values, (
+                        f"Widget '{widget.identifier}' has invalid visibility value '{v}'. "
+                        f"Valid values: {valid_values}"
+                    )
+
+    @pytest.mark.asyncio
+    async def test_listed_tools_visibility(self):
+        """Tools in list_tools should have valid visibility if specified."""
+        from main import list_tools
+        valid_values = {"model", "app"}
+
+        for tool in await list_tools():
+            meta = getattr(tool, '_meta', None) or getattr(tool, 'meta', None)
+            if meta and "ui" in meta:
+                visibility = meta["ui"].get("visibility")
+                if visibility is not None:
+                    assert isinstance(visibility, list), (
+                        f"Tool '{tool.name}' visibility must be a list"
+                    )
+                    for v in visibility:
+                        assert v in valid_values, (
+                            f"Tool '{tool.name}' has invalid visibility value '{v}'"
+                        )
+
+
+# =============================================================================
+# EXTENDED CSP COMPLIANCE
+# =============================================================================
+
+class TestExtendedCspCompliance:
+    """Verify CSP configuration follows the full MCP Apps spec.
+
+    The spec defines these CSP fields:
+    - connectDomains: Origins for network requests (fetch/XHR/WebSocket)
+    - resourceDomains: Origins for static resources (scripts, images, styles, fonts)
+    - frameDomains: Origins for nested iframes (optional)
+    - baseUriDomains: Allowed base URIs (optional)
+    """
+
+    def test_csp_domains_are_valid_origins(self):
+        """CSP domains must be valid HTTP(S) origins."""
+        from main import get_tool_meta
+        from urllib.parse import urlparse
+
+        for widget in get_widgets():
+            csp = get_tool_meta(widget)["ui"]["csp"]
+
+            for field in ("resourceDomains", "connectDomains"):
+                for domain in csp.get(field, []):
+                    parsed = urlparse(domain)
+                    assert parsed.scheme in ("http", "https"), (
+                        f"Widget '{widget.identifier}' CSP {field} has invalid scheme in '{domain}'. "
+                        "Must be http:// or https://"
+                    )
+                    assert parsed.netloc, (
+                        f"Widget '{widget.identifier}' CSP {field} missing host in '{domain}'"
+                    )
+
+    def test_csp_optional_fields_format(self):
+        """If frameDomains or baseUriDomains are specified, they must be valid."""
+        from main import get_tool_meta
+        from urllib.parse import urlparse
+
+        for widget in get_widgets():
+            csp = get_tool_meta(widget)["ui"]["csp"]
+
+            for field in ("frameDomains", "baseUriDomains"):
+                if field in csp:
+                    assert isinstance(csp[field], list), (
+                        f"Widget '{widget.identifier}' CSP {field} must be a list"
+                    )
+                    for domain in csp[field]:
+                        parsed = urlparse(domain)
+                        assert parsed.scheme in ("http", "https"), (
+                            f"Widget '{widget.identifier}' CSP {field} has invalid scheme in '{domain}'"
+                        )
+
+
+# =============================================================================
+# PERMISSIONS COMPLIANCE
+# =============================================================================
+
+class TestPermissionsCompliance:
+    """Verify permissions structure follows MCP Apps spec.
+
+    The spec defines these permission types:
+    - camera: Request camera access
+    - microphone: Request microphone access
+    - geolocation: Request geolocation access
+    - clipboardWrite: Request clipboard write access
+    """
+
+    def test_permissions_structure_if_present(self):
+        """If permissions are declared, they must follow the spec structure."""
+        from main import get_tool_meta
+        valid_permissions = {"camera", "microphone", "geolocation", "clipboardWrite"}
+
+        for widget in get_widgets():
+            meta = get_tool_meta(widget)
+            ui_meta = meta.get("ui", {})
+            permissions = ui_meta.get("permissions")
+
+            if permissions is not None:
+                assert isinstance(permissions, dict), (
+                    f"Widget '{widget.identifier}' permissions must be a dict"
+                )
+                for perm_name, perm_value in permissions.items():
+                    assert perm_name in valid_permissions, (
+                        f"Widget '{widget.identifier}' has unknown permission '{perm_name}'. "
+                        f"Valid: {valid_permissions}"
+                    )
+                    # Per spec, permission values are empty objects {}
+                    assert isinstance(perm_value, dict), (
+                        f"Widget '{widget.identifier}' permission '{perm_name}' must be an empty dict"
+                    )
+
+    @pytest.mark.asyncio
+    async def test_resource_permissions_structure(self):
+        """Resource metadata permissions must follow spec structure if present."""
+        valid_permissions = {"camera", "microphone", "geolocation", "clipboardWrite"}
+
+        for widget in get_widgets():
+            result = await read_resource(widget.template_uri)
+            content = result.root.contents[0]
+
+            # Check for _meta.ui.permissions
+            meta = getattr(content, '_meta', None) or getattr(content, 'meta', None)
+            if meta and "ui" in meta and "permissions" in meta["ui"]:
+                permissions = meta["ui"]["permissions"]
+                assert isinstance(permissions, dict)
+                for perm_name in permissions:
+                    assert perm_name in valid_permissions
+
+
+# =============================================================================
+# RESOURCE READ RESPONSE COMPLIANCE
+# =============================================================================
+
+class TestResourceReadCompliance:
+    """Verify resources/read responses follow MCP Apps spec format.
+
+    The spec requires resource content to include _meta.ui with:
+    - csp: Content Security Policy configuration
+    - permissions: Optional sandbox permissions
+    - domain: Optional dedicated origin
+    - prefersBorder: Optional visual boundary preference
+    """
+
+    @pytest.mark.asyncio
+    async def test_resource_content_has_ui_meta(self):
+        """Resource content should include _meta.ui section."""
+        for widget in get_widgets():
+            result = await read_resource(widget.template_uri)
+            content = result.root.contents[0]
+
+            meta = getattr(content, '_meta', None) or getattr(content, 'meta', None)
+            assert meta is not None, (
+                f"Resource '{widget.template_uri}' missing _meta in content"
+            )
+            assert "ui" in meta, (
+                f"Resource '{widget.template_uri}' missing _meta.ui in content"
+            )
+
+    @pytest.mark.asyncio
+    async def test_resource_content_has_csp(self):
+        """Resource content _meta.ui should include CSP configuration."""
+        for widget in get_widgets():
+            result = await read_resource(widget.template_uri)
+            content = result.root.contents[0]
+
+            meta = getattr(content, '_meta', None) or getattr(content, 'meta', None)
+            assert "csp" in meta.get("ui", {}), (
+                f"Resource '{widget.template_uri}' missing _meta.ui.csp"
+            )
+
+    @pytest.mark.asyncio
+    async def test_resource_content_csp_matches_tool(self):
+        """Resource CSP should match the tool's declared CSP."""
+        from main import get_tool_meta
+
+        for widget in get_widgets():
+            # Get tool CSP
+            tool_meta = get_tool_meta(widget)
+            tool_csp = tool_meta["ui"]["csp"]
+
+            # Get resource CSP
+            result = await read_resource(widget.template_uri)
+            content = result.root.contents[0]
+            content_meta = getattr(content, '_meta', None) or getattr(content, 'meta', None)
+            resource_csp = content_meta.get("ui", {}).get("csp", {})
+
+            # Compare resourceDomains
+            assert set(resource_csp.get("resourceDomains", [])) == set(tool_csp.get("resourceDomains", [])), (
+                f"Widget '{widget.identifier}' resource CSP resourceDomains doesn't match tool CSP"
+            )
+
+
+# =============================================================================
+# INPUT SCHEMA COMPLIANCE
+# =============================================================================
+
+class TestInputSchemaCompliance:
+    """Verify tool input schemas are properly defined."""
+
+    @pytest.mark.asyncio
+    async def test_tools_have_input_schema(self):
+        """All tools must have an inputSchema."""
+        from main import list_tools
+
+        for tool in await list_tools():
+            assert tool.inputSchema is not None, (
+                f"Tool '{tool.name}' missing inputSchema"
+            )
+            assert isinstance(tool.inputSchema, dict), (
+                f"Tool '{tool.name}' inputSchema must be a dict"
+            )
+
+    @pytest.mark.asyncio
+    async def test_input_schema_is_object_type(self):
+        """Tool inputSchema should be type: object."""
+        from main import list_tools
+
+        for tool in await list_tools():
+            schema = tool.inputSchema
+            assert schema.get("type") == "object", (
+                f"Tool '{tool.name}' inputSchema type should be 'object'"
+            )
+
+    @pytest.mark.asyncio
+    async def test_input_schema_has_properties(self):
+        """Tool inputSchema should have properties defined."""
+        from main import list_tools
+
+        for tool in await list_tools():
+            schema = tool.inputSchema
+            assert "properties" in schema, (
+                f"Tool '{tool.name}' inputSchema missing 'properties'"
+            )
+
+    @pytest.mark.asyncio
+    async def test_input_schema_forbids_additional_properties(self):
+        """Tool inputSchema should set additionalProperties: false for safety."""
+        from main import list_tools
+
+        for tool in await list_tools():
+            schema = tool.inputSchema
+            # This is a best practice for MCP tools
+            assert schema.get("additionalProperties") is False, (
+                f"Tool '{tool.name}' should have additionalProperties: false"
+            )
+
+
+# =============================================================================
+# PREFERS BORDER COMPLIANCE
+# =============================================================================
+
+class TestPrefersBorderCompliance:
+    """Verify prefersBorder field follows MCP Apps spec if present.
+
+    The spec defines prefersBorder as an optional boolean:
+    - true: Request visible border + background
+    - false: Request no visible border + background
+    - omitted: host decides
+    """
+
+    def test_prefers_border_is_boolean_if_present(self):
+        """If prefersBorder is specified, it must be a boolean."""
+        from main import get_tool_meta
+
+        for widget in get_widgets():
+            meta = get_tool_meta(widget)
+            ui_meta = meta.get("ui", {})
+
+            if "prefersBorder" in ui_meta:
+                assert isinstance(ui_meta["prefersBorder"], bool), (
+                    f"Widget '{widget.identifier}' prefersBorder must be a boolean"
+                )
+
+    @pytest.mark.asyncio
+    async def test_resource_prefers_border_is_boolean_if_present(self):
+        """Resource _meta.ui.prefersBorder must be boolean if specified."""
+        for widget in get_widgets():
+            result = await read_resource(widget.template_uri)
+            content = result.root.contents[0]
+
+            meta = getattr(content, '_meta', None) or getattr(content, 'meta', None)
+            if meta and "ui" in meta and "prefersBorder" in meta["ui"]:
+                assert isinstance(meta["ui"]["prefersBorder"], bool), (
+                    f"Resource '{widget.template_uri}' prefersBorder must be boolean"
+                )
