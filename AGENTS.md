@@ -48,7 +48,8 @@ Read these before building:
 - `docs/what-makes-a-great-chatgpt-app.md` - Know/Do/Show framework, capability design, conversation patterns (OpenAI guidance)
 - `docs/widget-development.md` - Project-specific hooks (`useWidgetProps`, `useTheme`, `useHostGlobal`), patterns
 - `docs/mcp-development-guidelines.md` - MCP best practices (tool naming, descriptions, error handling)
-- MCP Apps docs: https://modelcontextprotocol.io/docs/extensions/apps
+- `docs/mcp-apps-docs.md` - MCP Apps overview, getting started, examples
+- `docs/mcp-apps-specs.mdx` - MCP Apps protocol specification (SEP-1865) - message formats, lifecycle, security
 
 ## Adding a Widget
 

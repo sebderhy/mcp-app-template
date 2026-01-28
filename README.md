@@ -361,7 +361,7 @@ Deploy the Python server to any platform (Fly.io, Render, Railway, Cloud Run, et
 
 ## Resources
 
-- [MCP Apps Protocol](https://modelcontextprotocol.io/docs/extensions/apps) - Official MCP Apps specification
+- [MCP Apps Protocol](https://modelcontextprotocol.io/docs/extensions/apps) - Official MCP Apps specification (see also local copies: `docs/mcp-apps-docs.md`, `docs/mcp-apps-specs.mdx`)
 - [MCP Protocol](https://modelcontextprotocol.io/) - Model Context Protocol
 - [OpenAI Apps SDK](https://developers.openai.com/apps-sdk) - OpenAI's implementation
 - [Apps SDK UI Components](https://openai.github.io/apps-sdk-ui/)
