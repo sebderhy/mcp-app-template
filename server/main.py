@@ -1173,7 +1173,32 @@ mcp._mcp_server.request_handlers[types.ReadResourceRequest] = handle_read_resour
 # HTTP APP SETUP
 # =============================================================================
 
-app = mcp.streamable_http_app()
+_inner_app = mcp.streamable_http_app()
+
+
+async def app(scope, receive, send):
+    """ASGI wrapper that starts the sandbox server on first request.
+
+    We can't start the sandbox server at module import time because that would
+    cause side effects when tests import this module. Instead, we start it
+    lazily on the first ASGI lifespan/request event.
+    """
+    if scope["type"] == "lifespan":
+        # Start sandbox server during ASGI lifespan startup
+        async def _wrapped_receive():
+            message = await receive()
+            if message["type"] == "lifespan.startup":
+                start_sandbox_server(8001)
+            return message
+        await _inner_app(scope, _wrapped_receive, send)
+    else:
+        await _inner_app(scope, receive, send)
+
+
+# Expose the inner app's attributes so middleware/routes can be added
+app.add_middleware = _inner_app.add_middleware  # type: ignore[attr-defined]
+app.mount = _inner_app.mount  # type: ignore[attr-defined]
+app.routes = _inner_app.routes  # type: ignore[attr-defined]
 
 try:
     from starlette.middleware.cors import CORSMiddleware
@@ -1464,17 +1489,13 @@ def start_sandbox_server(port: int = 8001) -> HTTPServer:
     """Start the sandbox proxy server on a separate port.
 
     This provides origin isolation for the MCP Apps sandbox.
+    Raises OSError if the port is already in use.
     """
     server = HTTPServer(("0.0.0.0", port), SandboxProxyHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     print(f"Sandbox proxy server listening on http://0.0.0.0:{port}")
     return server
-
-
-# Start sandbox proxy server immediately when module is loaded
-# This provides origin isolation for MCP Apps widgets
-_sandbox_server = start_sandbox_server(8001)
 
 
 # =============================================================================
@@ -1496,8 +1517,5 @@ if __name__ == "__main__":
     print("Assets: http://0.0.0.0:8000/assets/")
     print("Sandbox: http://0.0.0.0:8001 (origin isolation)")
     print("=" * 60 + "\n")
-
-    # Start sandbox proxy server on port 8001
-    start_sandbox_server(8001)
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
