@@ -25,7 +25,7 @@ Agents read `/tmp/ui-test/screenshot.png` to verify their changes work.
 Local simulator for manual testing - works instantly without API key via [Puter.js](https://puter.com). Add an OpenAI key for AI-in-the-loop testing.
 
 ### 5. Working Examples
-9 production-ready widgets demonstrating state management, theming, 3D visualization, drag-and-drop, and more.
+12 production-ready widgets demonstrating state management, theming, 3D visualization, drag-and-drop, real-time monitoring, and more.
 
 ## Demo
 
@@ -163,7 +163,10 @@ User Prompt → MCP Host → MCP Tool Call → Python Server → Widget renders 
 | `solar-system` | 3D visualization (Three.js) |
 | `todo` | Task manager with drag-and-drop |
 | `shop` | E-commerce cart flow |
-| `travel-map` | Interactive map with markers |
+| `qr` | QR code generator with customization |
+| `system-monitor` | Real-time CPU & memory monitoring (Chart.js) |
+| `scenario-modeler` | SaaS financial projections with interactive sliders |
+| `map` | Interactive 3D globe with geocoding (CesiumJS) |
 
 Try them: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
 
@@ -370,6 +373,8 @@ Deploy the Python server to any platform (Fly.io, Render, Railway, Cloud Run, et
 ## Acknowledgments
 
 Based on [OpenAI's Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples) and the [MCP Apps Protocol](https://modelcontextprotocol.io/docs/extensions/apps).
+
+The `qr`, `system-monitor`, `scenario-modeler`, and `map` widgets are ported from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps) (MIT License).
 
 ## License
 

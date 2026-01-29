@@ -24,7 +24,10 @@ const targets: string[] = [
   "solar-system",
   "todo",
   "shop",
-  "travel-map",
+  "qr",
+  "system-monitor",
+  "scenario-modeler",
+  "map",
   "apptester",
   "sandbox-proxy",
 ];
