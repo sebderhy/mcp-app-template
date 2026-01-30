@@ -39,6 +39,7 @@ import psutil
 import qrcode
 from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # Load .env file at startup (for BASE_URL and other config)
@@ -865,7 +866,17 @@ Choose the right tool based on user intent:
 - Use the `title` parameter to customize the widget header
 """
 
-mcp = FastMCP(name="boilerplate-server", instructions=SERVER_INSTRUCTIONS, stateless_http=True)
+mcp = FastMCP(
+    name="boilerplate-server",
+    instructions=SERVER_INSTRUCTIONS,
+    stateless_http=True,
+    # Disable DNS rebinding protection when tunneling (e.g. cloudflared).
+    # The tunnel hostname is random and changes each session, so we can't
+    # allowlist it statically.  Re-enable for production with a fixed domain.
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
+)
 
 
 # External CDN domains used by the template widgets

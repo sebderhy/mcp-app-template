@@ -269,9 +269,7 @@ export default function McpAppRenderer({
           if (onToolCall) {
             try {
               const result = await onToolCall(toolName, toolArgs);
-              sendResponse(data.id!, {
-                content: [{ type: "text", text: JSON.stringify(result) }],
-              });
+              sendResponse(data.id!, result);
             } catch (err) {
               sendResponse(data.id!, undefined, {
                 code: -32000,
