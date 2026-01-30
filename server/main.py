@@ -1689,8 +1689,14 @@ async def chat_status_endpoint(request: Request) -> JSONResponse:
 async def tools_list_endpoint(request: Request) -> JSONResponse:
     """
     Return tool definitions in OpenAI function calling format.
-    Used by Puter.js fallback to get available tools.
-    Includes both widget tools and data-only helper tools.
+    Used by Puter.js fallback and the apptester to get available tools.
+
+    IMPORTANT: Only returns widget tools (tools that produce HTML).
+    Helper tools (poll_system_stats, geocode, etc.) are excluded because
+    the apptester renders tools as widgets — calling a non-widget tool
+    would crash with 'Cannot read properties of undefined (reading replace)'.
+    Helper tools are still callable via /tools/call and registered in
+    the MCP list_tools() for MCP host routing.
     """
     tools = []
 
@@ -1698,26 +1704,12 @@ async def tools_list_endpoint(request: Request) -> JSONResponse:
         schema = get_tool_schema(widget.identifier)
         tools.append({
             "type": "function",
-            "widget": True,
             "function": {
                 "name": widget.identifier,
                 "description": widget.description,
                 "parameters": schema,
             }
         })
-
-    # Data-only helper tools called by widgets via callTool
-    for tool in await list_tools():
-        if tool.name not in WIDGETS_BY_ID:
-            tools.append({
-                "type": "function",
-                "widget": False,
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": tool.inputSchema or {"type": "object", "properties": {}},
-                }
-            })
 
     return JSONResponse({"tools": tools})
 

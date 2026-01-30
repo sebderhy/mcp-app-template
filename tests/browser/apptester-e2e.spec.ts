@@ -160,10 +160,10 @@ test("apptester loads and renders widgets", async () => {
       return root && root.children.length > 0;
     }, { timeout: 10000 });
 
-    // 3. Switch to Direct mode
-    const directButton = page.locator('button:has-text("Direct")');
-    await directButton.waitFor({ state: 'visible', timeout: 5000 });
-    await directButton.click();
+    // 3. Switch to Direct mode (the mode toggle uses <a> tags, not <button>)
+    const directLink = page.locator('a:has-text("Direct")');
+    await directLink.waitFor({ state: 'visible', timeout: 5000 });
+    await directLink.click();
 
     // 4. Wait for tools select
     await page.waitForSelector('select', { timeout: 10000 });

@@ -87,6 +87,67 @@ class TestListTools:
             assert widget.identifier in tool_names, f"Widget '{widget.identifier}' has no tool"
 
 
+class TestToolsHttpEndpoint:
+    """Tests for the HTTP /tools endpoint used by the apptester.
+
+    The HTTP /tools endpoint serves the apptester and Puter.js.
+    It must ONLY return widget tools (tools that produce HTML).
+    Helper tools (poll_system_stats, geocode, etc.) must NOT appear
+    because the apptester will try to render them and crash.
+    """
+
+    @pytest.mark.asyncio
+    async def test_http_tools_only_returns_widget_tools(self):
+        """HTTP /tools must only return tools that have a corresponding widget with HTML."""
+        from main import tools_list_endpoint, WIDGETS_BY_ID
+        from starlette.testclient import TestClient
+
+        response = await tools_list_endpoint(None)
+        import json
+        data = json.loads(response.body)
+        tool_names = [t["function"]["name"] for t in data["tools"]]
+
+        for name in tool_names:
+            assert name in WIDGETS_BY_ID, (
+                f"HTTP /tools includes '{name}' which is not a widget. "
+                f"Non-widget tools must not appear in the HTTP /tools endpoint "
+                f"because the apptester will try to render them and crash."
+            )
+
+    @pytest.mark.asyncio
+    async def test_http_tools_count_matches_widgets(self):
+        """HTTP /tools must return exactly the number of widgets."""
+        from main import tools_list_endpoint, WIDGETS
+        import json
+
+        response = await tools_list_endpoint(None)
+        data = json.loads(response.body)
+
+        assert len(data["tools"]) == len(WIDGETS), (
+            f"HTTP /tools returned {len(data['tools'])} tools but there are {len(WIDGETS)} widgets. "
+            f"Helper tools should not be in the HTTP /tools response."
+        )
+
+    @pytest.mark.asyncio
+    async def test_helper_tools_are_callable_via_handle_call_tool(self):
+        """Helper tools (not in WIDGETS) must still be callable via handle_call_tool."""
+        from main import list_tools, WIDGETS_BY_ID, handle_call_tool
+
+        all_tools = await list_tools()
+        helper_tools = [t for t in all_tools if t.name not in WIDGETS_BY_ID]
+
+        for tool in helper_tools:
+            request = types.CallToolRequest(
+                method="tools/call",
+                params=types.CallToolRequestParams(name=tool.name, arguments={}),
+            )
+            result = await handle_call_tool(request)
+            assert result.root.isError is not True, (
+                f"Helper tool '{tool.name}' is registered in list_tools() but "
+                f"handle_call_tool returns an error"
+            )
+
+
 class TestListResources:
     """Tests for list_resources endpoint infrastructure."""
 
