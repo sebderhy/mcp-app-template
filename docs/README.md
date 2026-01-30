@@ -173,7 +173,7 @@ Before deploying to MCP Apps hosts, verify:
 ### Testing
 - [ ] `pnpm run test` passes
 - [ ] `pnpm run ui-test` shows correct rendering
-- [ ] Tested in simulator with real prompts
+- [ ] Tested in app tester with real prompts
 
 ---
 
