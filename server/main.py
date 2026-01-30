@@ -1000,9 +1000,19 @@ async def list_tools() -> List[types.Tool]:
             },
         ))
 
-    # Note: Data-only tools (poll_system_stats, geocode) are NOT listed here.
-    # They are callable via handle_call_tool but are internal to widgets,
-    # not intended for the LLM to invoke directly.
+    # Data-only tools: called by widgets via callTool, not intended for LLM use.
+    # They must be registered so MCP hosts can route callTool invocations.
+    tools.append(types.Tool(
+        name="poll_system_stats",
+        title="Poll System Stats",
+        description="Returns live CPU and memory stats. Called by the system monitor widget for polling — not intended for direct LLM use.",
+        inputSchema={"type": "object", "properties": {}, "additionalProperties": False},
+        annotations={
+            "destructiveHint": False,
+            "openWorldHint": False,
+            "readOnlyHint": True,
+        },
+    ))
 
     return tools
 
@@ -1680,6 +1690,7 @@ async def tools_list_endpoint(request: Request) -> JSONResponse:
     """
     Return tool definitions in OpenAI function calling format.
     Used by Puter.js fallback to get available tools.
+    Includes both widget tools and data-only helper tools.
     """
     tools = []
 
@@ -1687,12 +1698,26 @@ async def tools_list_endpoint(request: Request) -> JSONResponse:
         schema = get_tool_schema(widget.identifier)
         tools.append({
             "type": "function",
+            "widget": True,
             "function": {
                 "name": widget.identifier,
                 "description": widget.description,
                 "parameters": schema,
             }
         })
+
+    # Data-only helper tools called by widgets via callTool
+    for tool in await list_tools():
+        if tool.name not in WIDGETS_BY_ID:
+            tools.append({
+                "type": "function",
+                "widget": False,
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": tool.inputSchema or {"type": "object", "properties": {}},
+                }
+            })
 
     return JSONResponse({"tools": tools})
 
@@ -1701,6 +1726,7 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
     """
     Execute a tool and return the result.
     Used by Puter.js fallback to call MCP tools.
+    Handles both widget tools (with HTML) and data-only tools (no HTML).
     """
     try:
         body = await request.json()
@@ -1709,10 +1735,6 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
 
         if not tool_name:
             return JSONResponse({"error": "Missing tool name"}, status_code=400)
-
-        widget = WIDGETS_BY_ID.get(tool_name)
-        if not widget:
-            return JSONResponse({"error": f"Unknown tool: {tool_name}"}, status_code=404)
 
         # Create a mock request and call the handler
         import mcp.types as types
@@ -1723,17 +1745,27 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
 
         result = await handle_call_tool(mock_req)
 
+        # Check if the handler returned an error
+        if hasattr(result, 'root') and getattr(result.root, 'isError', False):
+            error_text = result.root.content[0].text if result.root.content else "Unknown error"
+            return JSONResponse({"error": error_text}, status_code=404)
+
         # Extract structured content from result
         if hasattr(result, 'root') and hasattr(result.root, 'structuredContent'):
             structured_content = result.root.structuredContent
         else:
             structured_content = {}
 
-        return JSONResponse({
+        # Widget tools include HTML; data-only tools return just the output
+        widget = WIDGETS_BY_ID.get(tool_name)
+        response: Dict[str, Any] = {
             "tool_name": tool_name,
-            "html": widget.html,
             "tool_output": structured_content,
-        })
+        }
+        if widget:
+            response["html"] = widget.html
+
+        return JSONResponse(response)
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)

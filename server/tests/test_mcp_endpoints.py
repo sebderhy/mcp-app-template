@@ -74,13 +74,17 @@ class TestListTools:
             assert tool.annotations.readOnlyHint is True
 
     @pytest.mark.asyncio
-    async def test_tool_count_matches_widgets(self):
-        """Number of tools matches number of widgets."""
+    async def test_tool_count_includes_widgets_and_helpers(self):
+        """Number of tools is at least the number of widgets (may include helper tools)."""
         from main import list_tools, WIDGETS
 
         tools = await list_tools()
 
-        assert len(tools) == len(WIDGETS)
+        assert len(tools) >= len(WIDGETS)
+        # Every widget must have a corresponding tool
+        tool_names = {t.name for t in tools}
+        for widget in WIDGETS:
+            assert widget.identifier in tool_names, f"Widget '{widget.identifier}' has no tool"
 
 
 class TestListResources:

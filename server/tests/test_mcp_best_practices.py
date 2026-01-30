@@ -136,6 +136,14 @@ class MCPBestPracticesReport:
 _report = MCPBestPracticesReport()
 
 
+async def _get_widget_tools():
+    """Return only widget tools (with _meta.ui) from list_tools.
+    Excludes data-only helper tools that are widget-internal."""
+    from main import list_tools
+    tools = await list_tools()
+    return [t for t in tools if getattr(t, '_meta', None) or getattr(t, 'meta', None)]
+
+
 def grade_check(category: str, check_name: str, weight: float = 1.0):
     """Decorator to register a grading check."""
     def decorator(func):
@@ -189,7 +197,8 @@ class TestToolNaming:
         tools = await list_tools()
         # Common verbs for MCP tools
         verbs = {'show', 'get', 'create', 'update', 'delete', 'search', 'list',
-                 'find', 'fetch', 'read', 'write', 'send', 'run', 'execute', 'add'}
+                 'find', 'fetch', 'read', 'write', 'send', 'run', 'execute', 'add',
+                 'poll'}
 
         violations = []
         for tool in tools:
@@ -272,10 +281,8 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_have_minimum_length(self):
-        """Tool descriptions should be substantial (not one-liners)."""
-        from main import list_tools
-
-        tools = await list_tools()
+        """Widget tool descriptions should be substantial (not one-liners)."""
+        tools = await _get_widget_tools()
         violations = []
         min_length = 100  # Characters
 
@@ -300,10 +307,8 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_use_cases(self):
-        """Tool descriptions should include 'Use this tool when' section."""
-        from main import list_tools
-
-        tools = await list_tools()
+        """Widget tool descriptions should include 'Use this tool when' section."""
+        tools = await _get_widget_tools()
         violations = []
         patterns = ['use this tool when', 'use this when', 'use when']
 
@@ -328,10 +333,8 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_args_section(self):
-        """Tool descriptions should document arguments."""
-        from main import list_tools
-
-        tools = await list_tools()
+        """Widget tool descriptions should document arguments."""
+        tools = await _get_widget_tools()
         violations = []
         patterns = ['args:', 'arguments:', 'parameters:']
 
@@ -356,10 +359,8 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_returns_section(self):
-        """Tool descriptions should document return values."""
-        from main import list_tools
-
-        tools = await list_tools()
+        """Widget tool descriptions should document return values."""
+        tools = await _get_widget_tools()
         violations = []
         patterns = ['returns:', 'return value:', 'output:']
 
@@ -384,10 +385,8 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_example(self):
-        """Tool descriptions should include at least one example."""
-        from main import list_tools
-
-        tools = await list_tools()
+        """Widget tool descriptions should include at least one example."""
+        tools = await _get_widget_tools()
         violations = []
         patterns = ['example:', 'example usage:', 'e.g.', 'for example']
 

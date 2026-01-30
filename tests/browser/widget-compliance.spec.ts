@@ -9,6 +9,7 @@
  * - Widget actually renders content
  * - Works in both light and dark themes
  * - No unhandled promise rejections
+ * - All callTool invocations reference tools registered on the server
  *
  * Setup:
  *   pnpm run setup:test              # Install Playwright browsers
@@ -28,6 +29,8 @@ let browserAvailable: boolean | null = null;
 
 // Track rejections per page
 const pageRejections = new WeakMap<Page, string[]>();
+// Track tool calls per page (tool names invoked by widgets via callTool)
+const pageToolCalls = new WeakMap<Page, string[]>();
 const exposedPages = new WeakSet<Page>();
 
 function getPageRejections(page: Page): string[] {
@@ -37,8 +40,19 @@ function getPageRejections(page: Page): string[] {
   return pageRejections.get(page)!;
 }
 
+function getPageToolCalls(page: Page): string[] {
+  if (!pageToolCalls.has(page)) {
+    pageToolCalls.set(page, []);
+  }
+  return pageToolCalls.get(page)!;
+}
+
 function clearPageRejections(page: Page): void {
   pageRejections.set(page, []);
+}
+
+function clearPageToolCalls(page: Page): void {
+  pageToolCalls.set(page, []);
 }
 
 /**
@@ -95,14 +109,25 @@ async function startServer(): Promise<ChildProcess> {
 }
 
 /**
- * Get all widget tools from the server
+ * Get all registered tool names from the server (widget + helper tools).
+ */
+async function getAllRegisteredToolNames(): Promise<Set<string>> {
+  const response = await fetch(`${SERVER_URL}/tools`);
+  const data = await response.json();
+  return new Set(
+    (data.tools || []).map((t: { function: { name: string } }) => t.function.name)
+  );
+}
+
+/**
+ * Get widget tools from the server (tools with UI, excludes data-only helpers).
  */
 async function getWidgetTools(): Promise<string[]> {
   const response = await fetch(`${SERVER_URL}/tools`);
   const data = await response.json();
   return (data.tools || [])
-    .map((t: { function: { name: string } }) => t.function.name)
-    .filter((name: string) => name.startsWith("show_"));
+    .filter((t: { widget?: boolean }) => t.widget !== false)
+    .map((t: { function: { name: string } }) => t.function.name);
 }
 
 /**
@@ -112,12 +137,13 @@ async function renderWidget(
   page: Page,
   toolName: string,
   theme: "light" | "dark"
-): Promise<{ logs: string[]; errors: string[]; rejections: string[] }> {
+): Promise<{ logs: string[]; errors: string[]; rejections: string[]; toolCalls: string[] }> {
   const logs: string[] = [];
   const errors: string[] = [];
 
-  // Clear rejections from previous renders
+  // Clear tracking from previous renders
   clearPageRejections(page);
+  clearPageToolCalls(page);
 
   page.on("console", (msg) => {
     const text = `[${msg.type()}] ${msg.text()}`;
@@ -131,10 +157,13 @@ async function renderWidget(
     errors.push(error.message);
   });
 
-  // Capture unhandled promise rejections (only expose once per page)
+  // Expose reporting functions (only once per page)
   if (!exposedPages.has(page)) {
     await page.exposeFunction("__reportRejection__", (reason: string) => {
       getPageRejections(page).push(reason);
+    });
+    await page.exposeFunction("__reportToolCall__", (toolName: string) => {
+      getPageToolCalls(page).push(toolName);
     });
     exposedPages.add(page);
   }
@@ -168,7 +197,10 @@ async function renderWidget(
 
   const injectionScript = `<script>
     window.openai = ${JSON.stringify(openaiConfig)};
-    window.openai.callTool = async () => ({ result: "" });
+    window.openai.callTool = async (name) => {
+      window.parent.__reportToolCall__(name);
+      return { result: "" };
+    };
     window.openai.setWidgetState = async () => {};
     window.openai.sendFollowUpMessage = async () => {};
     window.openai.openExternal = () => {};
@@ -213,7 +245,7 @@ async function renderWidget(
 
   await page.waitForTimeout(2000);
 
-  return { logs, errors, rejections: getPageRejections(page) };
+  return { logs, errors, rejections: getPageRejections(page), toolCalls: getPageToolCalls(page) };
 }
 
 /**
@@ -373,6 +405,46 @@ test.describe("Widget Compliance", () => {
       }
 
       expect(failures, `Widgets with unhandled rejections:\n${failures.join("\n")}`).toHaveLength(0);
+    } finally {
+      await browser.close();
+    }
+  });
+
+  test("all widget callTool invocations reference registered server tools", async () => {
+    if (!(await canLaunchBrowser())) {
+      test.skip();
+      return;
+    }
+
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+    const page = await context.newPage();
+
+    try {
+      const [tools, registeredTools] = await Promise.all([
+        getWidgetTools(),
+        getAllRegisteredToolNames(),
+      ]);
+      const failures: string[] = [];
+
+      for (const tool of tools) {
+        const { toolCalls } = await renderWidget(page, tool, "light");
+        const uniqueCalls = [...new Set(toolCalls)];
+
+        for (const calledTool of uniqueCalls) {
+          if (!registeredTools.has(calledTool)) {
+            failures.push(
+              `${tool} calls unregistered tool "${calledTool}" — ` +
+              `the tool must be listed in the server's /tools endpoint`
+            );
+          }
+        }
+      }
+
+      expect(
+        failures,
+        `Widgets calling tools not registered on the server:\n${failures.join("\n")}`
+      ).toHaveLength(0);
     } finally {
       await browser.close();
     }

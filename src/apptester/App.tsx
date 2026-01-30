@@ -8,7 +8,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, SquarePen, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench } from "lucide-react";
+import { Send, SquarePen, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
 import McpAppRenderer from "./McpAppRenderer";
 
 // Puter.js types
@@ -120,6 +120,7 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState<string>("");
   const [toolArgs, setToolArgs] = useState<Record<string, string>>({});
   const [directWidget, setDirectWidget] = useState<WidgetData | null>(null);
+  const [toolPanelOpen, setToolPanelOpen] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -131,11 +132,13 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const widget = params.get("widget");
     const tool = params.get("tool");
+    const mode = params.get("mode");
     const args = params.get("args");
     const urlTheme = params.get("theme");
 
     return {
       toolName: tool || (widget ? `show_${widget}` : null),
+      directMode: mode === "direct",
       args: args ? JSON.parse(args) : null,
       theme: urlTheme === "dark" || urlTheme === "light" ? urlTheme : null,
     };
@@ -156,13 +159,15 @@ export default function App() {
         if (urlParams.theme) {
           setTheme(urlParams.theme);
         }
+        if (urlParams.directMode || urlParams.toolName) {
+          setInteractionMode("direct");
+        }
         if (urlParams.toolName) {
           // Validate tool exists
           const toolExists = loadedTools.some(
             (t: Tool) => t.function.name === urlParams.toolName
           );
           if (toolExists) {
-            setInteractionMode("direct");
             setSelectedTool(urlParams.toolName);
             if (urlParams.args) {
               // Convert args to string format for form inputs
@@ -469,6 +474,8 @@ After calling a tool, provide a brief helpful response about what you're showing
         toolOutput: data.tool_output,
         toolName: data.tool_name,
       });
+      // Auto-collapse the tool panel on mobile
+      setToolPanelOpen(false);
     } catch (error) {
       console.error("Tool invocation error:", error);
       alert(error instanceof Error ? error.message : "Failed to invoke tool");
@@ -498,21 +505,25 @@ After calling a tool, provide a brief helpful response about what you're showing
 
     const params = new URLSearchParams();
 
-    // Only add params in direct mode with a selected tool
-    if (interactionMode === "direct" && selectedTool) {
-      // Use "widget" param if tool follows show_* pattern, otherwise "tool"
-      if (selectedTool.startsWith("show_")) {
-        params.set("widget", selectedTool.replace("show_", ""));
-      } else {
-        params.set("tool", selectedTool);
-      }
+    // Add params for direct mode
+    if (interactionMode === "direct") {
+      if (selectedTool) {
+        // Use "widget" param if tool follows show_* pattern, otherwise "tool"
+        if (selectedTool.startsWith("show_")) {
+          params.set("widget", selectedTool.replace("show_", ""));
+        } else {
+          params.set("tool", selectedTool);
+        }
 
-      // Add args if any are set
-      const nonEmptyArgs = Object.fromEntries(
-        Object.entries(toolArgs).filter(([, v]) => v.trim() !== "")
-      );
-      if (Object.keys(nonEmptyArgs).length > 0) {
-        params.set("args", JSON.stringify(nonEmptyArgs));
+        // Add args if any are set
+        const nonEmptyArgs = Object.fromEntries(
+          Object.entries(toolArgs).filter(([, v]) => v.trim() !== "")
+        );
+        if (Object.keys(nonEmptyArgs).length > 0) {
+          params.set("args", JSON.stringify(nonEmptyArgs));
+        }
+      } else {
+        params.set("mode", "direct");
       }
     }
 
@@ -571,7 +582,18 @@ After calling a tool, provide a brief helpful response about what you're showing
           </button>
           <div className="min-w-0">
             <h1 className={`text-base sm:text-lg font-semibold truncate ${isDark ? "text-white" : "text-gray-900"}`}>
-              <span className="hidden sm:inline">MCP </span>App Tester
+              <a
+                href={window.location.pathname}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setInteractionMode("chat");
+                  setMessages([]);
+                  setExpandedWidget(null);
+                }}
+                className="hover:opacity-70 transition-opacity"
+              >
+                <span className="hidden sm:inline">MCP </span>App Tester
+              </a>
             </h1>
             {/* Mode indicator - hidden on very small screens */}
             <div className="hidden xs:flex items-center gap-1.5">
@@ -585,15 +607,40 @@ After calling a tool, provide a brief helpful response about what you're showing
                 }`}
               >
                 {interactionMode === "direct" ? (
-                  "Direct Tool Mode"
+                  <a
+                    href={`${window.location.pathname}?mode=direct`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setInteractionMode("direct");
+                    }}
+                    className="hover:underline cursor-pointer"
+                  >
+                    Direct Tool Mode
+                  </a>
                 ) : agentMode === "puter" ? (
-                  <span className="flex items-center gap-1">
+                  <a
+                    href={window.location.pathname}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setInteractionMode("chat");
+                    }}
+                    className="hover:underline cursor-pointer flex items-center gap-1"
+                  >
                     <Zap size={12} />
                     <span className="hidden sm:inline">Puter.js (free, no API key)</span>
                     <span className="sm:hidden">Puter.js</span>
-                  </span>
+                  </a>
                 ) : (
-                  "OpenAI API"
+                  <a
+                    href={window.location.pathname}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setInteractionMode("chat");
+                    }}
+                    className="hover:underline cursor-pointer"
+                  >
+                    Chat Mode
+                  </a>
                 )}
               </span>
             </div>
@@ -606,8 +653,12 @@ After calling a tool, provide a brief helpful response about what you're showing
               isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-100"
             }`}
           >
-            <button
-              onClick={() => setInteractionMode("chat")}
+            <a
+              href={window.location.pathname}
+              onClick={(e) => {
+                e.preventDefault();
+                setInteractionMode("chat");
+              }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-sm transition-colors ${
                 interactionMode === "chat"
                   ? isDark
@@ -621,9 +672,13 @@ After calling a tool, provide a brief helpful response about what you're showing
             >
               <MessageSquare size={16} />
               <span className="hidden sm:inline">Chat</span>
-            </button>
-            <button
-              onClick={() => setInteractionMode("direct")}
+            </a>
+            <a
+              href={`${window.location.pathname}?mode=direct`}
+              onClick={(e) => {
+                e.preventDefault();
+                setInteractionMode("direct");
+              }}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-sm transition-colors ${
                 interactionMode === "direct"
                   ? isDark
@@ -637,7 +692,7 @@ After calling a tool, provide a brief helpful response about what you're showing
             >
               <Wrench size={16} />
               <span className="hidden sm:inline">Direct</span>
-            </button>
+            </a>
           </div>
           <button
             onClick={() => setTheme(isDark ? "light" : "dark")}
@@ -652,18 +707,39 @@ After calling a tool, provide a brief helpful response about what you're showing
       </header>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden">
         {interactionMode === "direct" ? (
           /* Direct Tool Mode */
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 h-full">
-            <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 sm:gap-6 h-full">
-              {/* Tool Selection Panel */}
-              <div
-                className={`rounded-2xl border p-4 overflow-y-auto ${
-                  isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+          <div className="flex flex-col lg:flex-row h-full">
+            {/* Tool Selection Panel - sidebar on desktop, collapsible on mobile */}
+            <div
+              className={`lg:w-[300px] lg:flex-shrink-0 lg:border-r ${
+                isDark ? "lg:border-gray-700" : "lg:border-gray-200"
+              }`}
+            >
+              {/* Mobile toggle header */}
+              <button
+                onClick={() => setToolPanelOpen(!toolPanelOpen)}
+                className={`w-full lg:hidden flex items-center justify-between px-4 py-3 border-b ${
+                  isDark ? "border-gray-700 text-white" : "border-gray-200 text-gray-900"
                 }`}
               >
-                <h3 className={`font-semibold mb-4 ${isDark ? "text-white" : "text-gray-900"}`}>
+                <div className="flex items-center gap-2">
+                  <Settings2 size={18} className={isDark ? "text-gray-400" : "text-gray-500"} />
+                  <span className="font-medium text-sm">
+                    {selectedTool || "Select Tool"}
+                  </span>
+                </div>
+                {toolPanelOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </button>
+
+              {/* Panel content - always visible on desktop, toggled on mobile */}
+              <div
+                className={`overflow-y-auto p-4 ${
+                  toolPanelOpen ? "block" : "hidden"
+                } lg:block lg:h-full`}
+              >
+                <h3 className={`font-semibold mb-4 hidden lg:block ${isDark ? "text-white" : "text-gray-900"}`}>
                   Select Tool
                 </h3>
 
@@ -749,48 +825,33 @@ After calling a tool, provide a brief helpful response about what you're showing
                   {loading ? "Invoking..." : "Invoke Tool"}
                 </button>
               </div>
+            </div>
 
-              {/* Widget Display Panel */}
-              <div
-                className={`rounded-2xl overflow-hidden min-h-0 flex flex-col ${
-                  isDark ? "border border-gray-700 bg-gray-800" : ""
-                }`}
-              >
-                {directWidget ? (
-                  <div className="relative flex-1 min-h-[300px]">
-                    <McpAppRenderer
-                      html={directWidget.html}
-                      toolOutput={directWidget.toolOutput}
-                      theme={theme}
-                      onMessage={handleWidgetMessage}
-                      onToolCall={handleToolCallFromApp}
+            {/* Widget Display Panel - takes all remaining space */}
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+              {directWidget ? (
+                <div className="relative flex-1 min-h-[300px]">
+                  <McpAppRenderer
+                    html={directWidget.html}
+                    toolOutput={directWidget.toolOutput}
+                    theme={theme}
+                    onMessage={handleWidgetMessage}
+                    onToolCall={handleToolCallFromApp}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 min-h-[300px] flex items-center justify-center">
+                  <div className="text-center">
+                    <Wrench
+                      size={48}
+                      className={isDark ? "text-gray-600 mx-auto mb-3" : "text-gray-300 mx-auto mb-3"}
                     />
-                    <button
-                      onClick={() => setExpandedWidget(directWidget)}
-                      className={`absolute top-2 right-2 p-1.5 rounded-lg transition-colors ${
-                        isDark
-                          ? "bg-gray-800/80 hover:bg-gray-700 text-gray-400"
-                          : "bg-white/80 hover:bg-gray-100 text-gray-500"
-                      }`}
-                      title="Expand"
-                    >
-                      <Maximize2 size={16} />
-                    </button>
+                    <p className={isDark ? "text-gray-500" : "text-gray-400"}>
+                      Select a tool and click "Invoke" to see the widget
+                    </p>
                   </div>
-                ) : (
-                  <div className="flex-1 min-h-[300px] flex items-center justify-center">
-                    <div className="text-center">
-                      <Wrench
-                        size={48}
-                        className={isDark ? "text-gray-600 mx-auto mb-3" : "text-gray-300 mx-auto mb-3"}
-                      />
-                      <p className={isDark ? "text-gray-500" : "text-gray-400"}>
-                        Select a tool and click "Invoke" to see the widget
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
