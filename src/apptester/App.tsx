@@ -8,7 +8,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, SquarePen, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
+import { Send, SquarePen, Sun, Moon, Maximize2, X, Play, MessageSquare, Wrench, ChevronDown, ChevronUp, Settings2 } from "lucide-react";
 import McpAppRenderer from "./McpAppRenderer";
 
 // Puter.js types
@@ -595,58 +595,7 @@ After calling a tool, provide a brief helpful response about what you're showing
                 <span className="hidden sm:inline">MCP </span>App Tester
               </a>
             </h1>
-            {/* Mode indicator - hidden on very small screens */}
-            <div className="hidden xs:flex items-center gap-1.5">
-              <span
-                className={`text-xs ${
-                  agentMode === "puter"
-                    ? "text-green-500"
-                    : isDark
-                    ? "text-gray-500"
-                    : "text-gray-400"
-                }`}
-              >
-                {interactionMode === "direct" ? (
-                  <a
-                    href={`${window.location.pathname}?mode=direct`}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setInteractionMode("direct");
-                    }}
-                    className="hover:underline cursor-pointer"
-                  >
-                    Direct Tool Mode
-                  </a>
-                ) : agentMode === "puter" ? (
-                  <a
-                    href={window.location.pathname}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setInteractionMode("chat");
-                    }}
-                    className="hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <Zap size={12} />
-                    <span className="hidden sm:inline">Puter.js (free, no API key)</span>
-                    <span className="sm:hidden">Puter.js</span>
-                  </a>
-                ) : (
-                  <a
-                    href={window.location.pathname}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setInteractionMode("chat");
-                    }}
-                    className="hover:underline cursor-pointer"
-                  >
-                    Chat Mode
-                  </a>
-                )}
-              </span>
-            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Mode toggle */}
           <div
             className={`flex rounded-lg border p-0.5 ${
@@ -694,6 +643,8 @@ After calling a tool, provide a brief helpful response about what you're showing
               <span className="hidden sm:inline">Direct</span>
             </a>
           </div>
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           <button
             onClick={() => setTheme(isDark ? "light" : "dark")}
             className={`p-2 rounded-lg transition-colors ${

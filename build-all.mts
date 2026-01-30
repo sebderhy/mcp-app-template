@@ -187,7 +187,7 @@ for (const name of builtNames) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${name === "apptester" ? "MCP App Tester" : name}</title>
+  <title>${name === "apptester" ? "MCP App Tester" : name}</title>${name === "apptester" ? `\n  <link rel="icon" href="data:image/svg+xml,<svg viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">` : ""}
   <script type="module" src="./${name}-${h}.js"></script>
   <link rel="stylesheet" href="./${name}-${h}.css">
 </head>
