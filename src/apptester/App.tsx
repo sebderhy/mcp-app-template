@@ -8,7 +8,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Plus, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench } from "lucide-react";
+import { Send, SquarePen, Sun, Moon, Maximize2, X, Zap, Play, MessageSquare, Wrench } from "lucide-react";
 import McpAppRenderer from "./McpAppRenderer";
 
 // Puter.js types
@@ -550,7 +550,7 @@ After calling a tool, provide a brief helpful response about what you're showing
   }
 
   return (
-    <div className={`h-screen flex flex-col ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div className={`h-screen flex flex-col ${isDark ? "bg-gray-900" : "bg-white"}`}>
       {/* Header */}
       <header
         className={`px-3 sm:px-4 py-2 sm:py-3 border-b flex items-center justify-between gap-2 ${
@@ -567,7 +567,7 @@ After calling a tool, provide a brief helpful response about what you're showing
             }`}
             title="New conversation"
           >
-            <Plus size={20} />
+            <SquarePen size={20} />
           </button>
           <div className="min-w-0">
             <h1 className={`text-base sm:text-lg font-semibold truncate ${isDark ? "text-white" : "text-gray-900"}`}>
@@ -655,11 +655,11 @@ After calling a tool, provide a brief helpful response about what you're showing
       <div className="flex-1 overflow-y-auto">
         {interactionMode === "direct" ? (
           /* Direct Tool Mode */
-          <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6 h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-4 sm:gap-6 h-full">
               {/* Tool Selection Panel */}
               <div
-                className={`lg:col-span-1 rounded-2xl border p-4 ${
+                className={`rounded-2xl border p-4 overflow-y-auto ${
                   isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
                 }`}
               >
@@ -752,42 +752,33 @@ After calling a tool, provide a brief helpful response about what you're showing
 
               {/* Widget Display Panel */}
               <div
-                className={`lg:col-span-2 rounded-2xl border overflow-hidden ${
-                  isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                className={`rounded-2xl overflow-hidden min-h-0 flex flex-col ${
+                  isDark ? "border border-gray-700 bg-gray-800" : ""
                 }`}
               >
                 {directWidget ? (
-                  <>
-                    <div
-                      className={`px-4 py-2 flex items-center justify-between border-b ${
-                        isDark ? "border-gray-700" : "border-gray-100"
+                  <div className="relative flex-1 min-h-[300px]">
+                    <McpAppRenderer
+                      html={directWidget.html}
+                      toolOutput={directWidget.toolOutput}
+                      theme={theme}
+                      onMessage={handleWidgetMessage}
+                      onToolCall={handleToolCallFromApp}
+                    />
+                    <button
+                      onClick={() => setExpandedWidget(directWidget)}
+                      className={`absolute top-2 right-2 p-1.5 rounded-lg transition-colors ${
+                        isDark
+                          ? "bg-gray-800/80 hover:bg-gray-700 text-gray-400"
+                          : "bg-white/80 hover:bg-gray-100 text-gray-500"
                       }`}
+                      title="Expand"
                     >
-                      <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
-                        {directWidget.toolName.replace("show_", "").replace(/_/g, " ")}
-                      </span>
-                      <button
-                        onClick={() => setExpandedWidget(directWidget)}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isDark ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500"
-                        }`}
-                        title="Expand"
-                      >
-                        <Maximize2 size={16} />
-                      </button>
-                    </div>
-                    <div className="h-[300px] sm:h-[500px]">
-                      <McpAppRenderer
-                        html={directWidget.html}
-                        toolOutput={directWidget.toolOutput}
-                        theme={theme}
-                        onMessage={handleWidgetMessage}
-                        onToolCall={handleToolCallFromApp}
-                      />
-                    </div>
-                  </>
+                      <Maximize2 size={16} />
+                    </button>
+                  </div>
                 ) : (
-                  <div className="h-[300px] sm:h-[500px] flex items-center justify-center">
+                  <div className="flex-1 min-h-[300px] flex items-center justify-center">
                     <div className="text-center">
                       <Wrench
                         size={48}
@@ -850,7 +841,7 @@ After calling a tool, provide a brief helpful response about what you're showing
                         : "bg-red-50 text-red-700 border border-red-200"
                       : isDark
                       ? "bg-gray-800 text-gray-100"
-                      : "bg-white text-gray-900 border border-gray-200"
+                      : "bg-gray-50 text-gray-900"
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -860,14 +851,14 @@ After calling a tool, provide a brief helpful response about what you're showing
               {/* Inline Widget */}
               {msg.widget && (
                 <div
-                  className={`rounded-2xl overflow-hidden border ${
-                    isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+                  className={`rounded-2xl overflow-hidden ${
+                    isDark ? "border border-gray-700 bg-gray-800" : ""
                   }`}
                 >
                   {/* Widget Header */}
                   <div
-                    className={`px-4 py-2 flex items-center justify-between border-b ${
-                      isDark ? "border-gray-700" : "border-gray-100"
+                    className={`px-4 py-2 flex items-center justify-between ${
+                      isDark ? "border-b border-gray-700" : ""
                     }`}
                   >
                     <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
@@ -902,7 +893,7 @@ After calling a tool, provide a brief helpful response about what you're showing
             <div className="flex justify-start">
               <div
                 className={`rounded-2xl px-4 py-3 ${
-                  isDark ? "bg-gray-800" : "bg-white border border-gray-200"
+                  isDark ? "bg-gray-800" : "bg-gray-50"
                 }`}
               >
                 <div className="flex items-center gap-1">

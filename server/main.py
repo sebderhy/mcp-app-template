@@ -1684,21 +1684,13 @@ async def tools_list_endpoint(request: Request) -> JSONResponse:
     tools = []
 
     for widget in WIDGETS:
+        schema = get_tool_schema(widget.identifier)
         tools.append({
             "type": "function",
             "function": {
                 "name": widget.identifier,
                 "description": widget.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {
-                            "type": "string",
-                            "description": "Widget title"
-                        }
-                    },
-                    "required": []
-                }
+                "parameters": schema,
             }
         })
 

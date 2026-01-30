@@ -12,7 +12,7 @@
     "tsc": "tsc -b",
     "tsc:app": "tsc -p tsconfig.app.json",
     "tsc:node": "tsc -p tsconfig.node.json",
-    "server": "cd server && .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "server": "pnpm run build:if-needed && cd server && .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
     "test": "pnpm run build:if-needed && pnpm run test:server && pnpm run test:ui",
     "test:server": "cd server && .venv/bin/python -m pytest",
     "test:server:cov": "cd server && .venv/bin/python -m pytest --cov=. --cov-report=term-missing",
