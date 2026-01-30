@@ -1,7 +1,9 @@
 """
-ChatGPT App Boilerplate - Python MCP Server
+MCP App Template - Python MCP Server
 
-This server provides multiple widget templates:
+This server provides multiple widget templates that work with any MCP Apps host
+(Claude, ChatGPT, VS Code, Goose, etc.):
+
 - Boilerplate: Basic interactive widget
 - Carousel: Horizontal scrolling cards
 - List: Vertical list with thumbnails
@@ -10,22 +12,42 @@ This server provides multiple widget templates:
 - Solar System: Interactive 3D solar system
 - Todo: Multi-list todo manager
 - Shop: E-commerce cart with checkout
+- QR Code: Stateless QR code generator (from ext-apps)
+- Scenario Modeler: Interactive SaaS financial projections (from ext-apps)
+- System Monitor: Real-time CPU/memory polling (from ext-apps)
+- Map: Interactive 3D globe with geocoding (from ext-apps)
 
 Run with: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 """
 
 from __future__ import annotations
 
+import base64
+import io
+import math
 import os
+import platform
+import socket
+import time
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import mcp.types as types
+import psutil
+import qrcode
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+# Load .env file at startup (for BASE_URL and other config)
+_env_path = Path(__file__).parent / ".env"
+if not _env_path.exists():
+    _env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
 # =============================================================================
 # CONFIGURATION
@@ -33,7 +55,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 @dataclass(frozen=True)
 class Widget:
-    """Configuration for a widget that can be rendered in ChatGPT."""
+    """Configuration for a widget that can be rendered in MCP Apps hosts."""
     identifier: str
     title: str
     description: str
@@ -44,7 +66,9 @@ class Widget:
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
-MIME_TYPE = "text/html+skybridge"
+# MCP Apps MIME type for UI resources
+# The profile parameter signals this is an MCP App resource
+MIME_TYPE = "text/html;profile=mcp-app"
 
 
 # =============================================================================
@@ -336,35 +360,112 @@ Example:
             html=load_widget_html("shop"),
         ),
         Widget(
-            identifier="show_travel_map",
-            title="Show Travel Map",
-            description="""Display an interactive map with places of interest - TripAdvisor style.
+            identifier="show_qr",
+            title="Generate QR Code",
+            description="""Generate a QR code from text or a URL.
 
 Use this tool when:
-- The user asks about places to visit in a city or area
-- Showing hotels, restaurants, attractions on a map
-- Travel planning and destination exploration
-- Displaying multiple points of interest with locations
+- The user wants to create a QR code
+- Encoding a URL, text, or data as a scannable image
+- Sharing links or information visually
 
 Args:
-    title: Map header text (default: "Explore the Area")
-    subtitle: Secondary text (default: "Top-rated places near you")
-    location: City or area name (default: "San Francisco")
+    text: The text or URL to encode (default: "https://modelcontextprotocol.io")
+    fill_color: Foreground color name or hex (default: "black")
+    back_color: Background color name or hex (default: "white")
 
 Returns:
-    Interactive map widget with:
-    - Color-coded markers for different categories (restaurants, hotels, attractions, cafes, shops)
-    - Clickable markers showing place details
-    - Place cards with ratings, reviews, price levels
-    - Horizontal scrollable list of all places
-    - Category legend
+    A QR code image displayed in the widget.
 
 Example:
-    show_travel_map(title="Top Places in Paris", subtitle="Must-visit spots", location="Paris")""",
-            template_uri="ui://widget/travel-map.html",
-            invoking="Loading travel map...",
-            invoked="Travel map ready",
-            html=load_widget_html("travel-map"),
+    show_qr(text="https://example.com", fill_color="#1a1a2e", back_color="#eaeaea")""",
+            template_uri="ui://widget/qr.html",
+            invoking="Generating QR code...",
+            invoked="QR code ready",
+            html=load_widget_html("qr"),
+        ),
+        Widget(
+            identifier="get_scenario_data",
+            title="SaaS Scenario Modeler",
+            description="""Interactive SaaS financial projection tool with scenario templates.
+
+Use this tool when:
+- The user wants to model SaaS business scenarios
+- Projecting revenue, profit, and growth over 12 months
+- Comparing different business strategies (bootstrapped, VC-funded, etc.)
+
+Args:
+    starting_mrr: Starting monthly recurring revenue in dollars (default: 50000)
+    monthly_growth_rate: Monthly growth rate percentage (default: 5)
+    monthly_churn_rate: Monthly churn rate percentage (default: 3)
+    gross_margin: Gross margin percentage (default: 80)
+    fixed_costs: Fixed monthly costs in dollars (default: 30000)
+
+Returns:
+    Interactive widget with sliders, 12-month projection chart, and comparison
+    against 5 pre-built scenario templates (Bootstrapped, VC Rocketship, Cash Cow,
+    Turnaround, Efficient Growth).
+
+Example:
+    get_scenario_data(starting_mrr=100000, monthly_growth_rate=15)""",
+            template_uri="ui://widget/scenario-modeler.html",
+            invoking="Loading scenario modeler...",
+            invoked="Scenario modeler ready",
+            html=load_widget_html("scenario-modeler"),
+        ),
+        Widget(
+            identifier="get_system_info",
+            title="System Monitor",
+            description="""Display real-time system monitoring with CPU and memory usage charts.
+
+Use this tool when:
+- The user asks about system performance or resource usage
+- Monitoring CPU load or memory consumption
+- Viewing system information (hostname, platform, uptime)
+
+Args:
+    (No parameters required - automatically detects system info)
+
+Returns:
+    Interactive widget with:
+    - Per-core CPU usage chart (updates every 2 seconds)
+    - Memory usage bar with percentage
+    - System info (hostname, platform, uptime)
+
+Example:
+    get_system_info()""",
+            template_uri="ui://widget/system-monitor.html",
+            invoking="Loading system monitor...",
+            invoked="System monitor ready",
+            html=load_widget_html("system-monitor"),
+        ),
+        Widget(
+            identifier="show_map",
+            title="Show Map",
+            description="""Display an interactive 3D globe zoomed to a specific location.
+
+Use this tool when:
+- The user asks about a geographic location
+- Showing a place on a map
+- Exploring areas visually
+
+Use the geocode tool first to find coordinates for a place name.
+
+Args:
+    west: Western longitude boundary (default: -0.5)
+    south: Southern latitude boundary (default: 51.3)
+    east: Eastern longitude boundary (default: 0.3)
+    north: Northern latitude boundary (default: 51.7)
+
+Returns:
+    Interactive 3D globe with OpenStreetMap tiles, centered on the given bounding box.
+
+Example:
+    show_map(west=2.2, south=48.8, east=2.5, north=48.9)""",
+            template_uri="ui://widget/map.html",
+            invoking="Loading map...",
+            invoked="Map ready",
+            html=load_widget_html("map"),
         ),
     ]
 
@@ -441,11 +542,44 @@ class ShopInput(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
-class TravelMapInput(BaseModel):
-    """Input for travel map widget."""
-    title: str = Field(default="Explore the Area", description="Map title")
-    subtitle: str = Field(default="Top-rated places near you", description="Map subtitle")
-    location: str = Field(default="San Francisco", description="City or area to display")
+class QrInput(BaseModel):
+    """Input for QR code widget."""
+    text: str = Field(default="https://modelcontextprotocol.io", description="Text or URL to encode")
+    box_size: int = Field(default=10, alias="boxSize", description="Box size in pixels")
+    border: int = Field(default=4, description="Border size in boxes")
+    error_correction: str = Field(default="M", alias="errorCorrection", description="Error correction: L(7%), M(15%), Q(25%), H(30%)")
+    fill_color: str = Field(default="black", alias="fillColor", description="Foreground color (hex or name)")
+    back_color: str = Field(default="white", alias="backColor", description="Background color (hex or name)")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class ScenarioModelerInput(BaseModel):
+    """Input for scenario modeler widget."""
+    starting_mrr: float = Field(default=50000, alias="startingMRR", description="Starting MRR in dollars")
+    monthly_growth_rate: float = Field(default=5, alias="monthlyGrowthRate", description="Monthly growth rate %")
+    monthly_churn_rate: float = Field(default=3, alias="monthlyChurnRate", description="Monthly churn rate %")
+    gross_margin: float = Field(default=80, alias="grossMargin", description="Gross margin %")
+    fixed_costs: float = Field(default=30000, alias="fixedCosts", description="Fixed monthly costs")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class SystemInfoInput(BaseModel):
+    """Input for system monitor widget (no parameters needed)."""
+    model_config = ConfigDict(extra="forbid")
+
+
+class ShowMapInput(BaseModel):
+    """Input for map widget."""
+    west: float = Field(default=-0.5, description="Western longitude (-180 to 180)")
+    south: float = Field(default=51.3, description="Southern latitude (-90 to 90)")
+    east: float = Field(default=0.3, description="Eastern longitude (-180 to 180)")
+    north: float = Field(default=51.7, description="Northern latitude (-90 to 90)")
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+class GeocodeInput(BaseModel):
+    """Input for geocode tool (data-only, no widget)."""
+    query: str = Field(default="London", description="Place name or address to search for")
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
@@ -576,89 +710,99 @@ SAMPLE_CART_ITEMS = [
     },
 ]
 
-SAMPLE_MAP_PLACES = [
-    {
-        "id": "1",
-        "name": "Golden Gate Bistro",
-        "category": "restaurant",
-        "description": "Award-winning modern American cuisine with stunning bay views",
-        "image": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop",
-        "rating": 4.8,
-        "reviewCount": 2847,
-        "priceLevel": "$$$",
-        "address": "123 Marina Blvd, San Francisco",
-        "lat": 37.8024,
-        "lng": -122.4058,
-        "tags": ["Fine Dining", "Waterfront"],
-    },
-    {
-        "id": "2",
-        "name": "The Fairmont",
-        "category": "hotel",
-        "description": "Historic luxury hotel atop Nob Hill with panoramic city views",
-        "image": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&h=300&fit=crop",
-        "rating": 4.7,
-        "reviewCount": 5234,
-        "priceLevel": "$$$$",
-        "address": "950 Mason St, San Francisco",
-        "lat": 37.7922,
-        "lng": -122.4100,
-        "tags": ["Luxury", "Historic"],
-    },
-    {
-        "id": "3",
-        "name": "Alcatraz Island",
-        "category": "attraction",
-        "description": "Iconic former federal prison with guided tours and bay views",
-        "image": "https://images.unsplash.com/photo-1534050359320-02900022671e?w=400&h=300&fit=crop",
-        "rating": 4.9,
-        "reviewCount": 18432,
-        "address": "Alcatraz Island, San Francisco Bay",
-        "lat": 37.8267,
-        "lng": -122.4230,
-        "tags": ["Historic", "Must See"],
-    },
-    {
-        "id": "4",
-        "name": "Blue Bottle Coffee",
-        "category": "cafe",
-        "description": "Artisan coffee roasters known for pour-over and espresso",
-        "image": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop",
-        "rating": 4.5,
-        "reviewCount": 1256,
-        "priceLevel": "$$",
-        "address": "66 Mint St, San Francisco",
-        "lat": 37.7825,
-        "lng": -122.4024,
-        "tags": ["Local Favorite"],
-    },
-    {
-        "id": "5",
-        "name": "Ferry Building Marketplace",
-        "category": "shop",
-        "description": "Historic waterfront marketplace with local artisan vendors",
-        "image": "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=400&h=300&fit=crop",
-        "rating": 4.6,
-        "reviewCount": 8921,
-        "address": "1 Ferry Building, San Francisco",
-        "lat": 37.7956,
-        "lng": -122.3935,
-        "tags": ["Shopping", "Food Hall"],
-    },
-    {
-        "id": "6",
-        "name": "Fisherman's Wharf",
-        "category": "attraction",
-        "description": "Bustling waterfront neighborhood with seafood and sea lions",
-        "image": "https://images.unsplash.com/photo-1534430480872-3498386e7856?w=400&h=300&fit=crop",
-        "rating": 4.4,
-        "reviewCount": 12543,
-        "address": "Jefferson St, San Francisco",
-        "lat": 37.8080,
-        "lng": -122.4177,
-        "tags": ["Family Friendly", "Iconic"],
-    },
+# No sample places data needed (map widget uses bounding box coordinates)
+SAMPLE_MAP_PLACES: List[Dict[str, Any]] = []
+
+
+# =============================================================================
+# SCENARIO MODELER DATA
+# =============================================================================
+
+def _calculate_projections(starting_mrr: float, monthly_growth_rate: float,
+                           monthly_churn_rate: float, gross_margin: float,
+                           fixed_costs: float) -> List[Dict[str, Any]]:
+    """Calculate 12-month SaaS projections."""
+    net_growth_rate = (monthly_growth_rate - monthly_churn_rate) / 100
+    projections = []
+    cumulative_revenue = 0.0
+    for month in range(1, 13):
+        mrr = starting_mrr * math.pow(1 + net_growth_rate, month)
+        gross_profit = mrr * (gross_margin / 100)
+        net_profit = gross_profit - fixed_costs
+        cumulative_revenue += mrr
+        projections.append({
+            "month": month, "mrr": mrr, "grossProfit": gross_profit,
+            "netProfit": net_profit, "cumulativeRevenue": cumulative_revenue,
+        })
+    return projections
+
+
+def _calculate_summary(projections: List[Dict[str, Any]], starting_mrr: float) -> Dict[str, Any]:
+    """Calculate summary metrics from projections."""
+    ending_mrr = projections[11]["mrr"]
+    total_revenue = sum(p["mrr"] for p in projections)
+    total_profit = sum(p["netProfit"] for p in projections)
+    mrr_growth_pct = ((ending_mrr - starting_mrr) / starting_mrr) * 100
+    avg_margin = (total_profit / total_revenue) * 100 if total_revenue else 0
+    break_even = next((p["month"] for p in projections if p["netProfit"] >= 0), 0)
+    return {
+        "endingMRR": ending_mrr, "arr": ending_mrr * 12,
+        "totalRevenue": total_revenue, "totalProfit": total_profit,
+        "mrrGrowthPct": mrr_growth_pct, "avgMargin": avg_margin,
+        "breakEvenMonth": break_even,
+    }
+
+
+def _build_scenario_template(id: str, name: str, description: str, icon: str,
+                              params: Dict[str, Any], key_insight: str) -> Dict[str, Any]:
+    """Build a complete scenario template with projections and summary."""
+    projections = _calculate_projections(**params)
+    summary = _calculate_summary(projections, params["starting_mrr"])
+    return {
+        "id": id, "name": name, "description": description, "icon": icon,
+        "parameters": {
+            "startingMRR": params["starting_mrr"],
+            "monthlyGrowthRate": params["monthly_growth_rate"],
+            "monthlyChurnRate": params["monthly_churn_rate"],
+            "grossMargin": params["gross_margin"],
+            "fixedCosts": params["fixed_costs"],
+        },
+        "projections": projections, "summary": summary, "keyInsight": key_insight,
+    }
+
+
+SCENARIO_TEMPLATES = [
+    _build_scenario_template("bootstrapped", "Bootstrapped Growth",
+        "Low burn, steady growth, path to profitability", "🌱",
+        {"starting_mrr": 30000, "monthly_growth_rate": 4, "monthly_churn_rate": 2,
+         "gross_margin": 85, "fixed_costs": 20000},
+        "Profitable by month 1, but slower scale"),
+    _build_scenario_template("vc-rocketship", "VC Rocketship",
+        "High burn, explosive growth, raise more later", "🚀",
+        {"starting_mrr": 100000, "monthly_growth_rate": 15, "monthly_churn_rate": 5,
+         "gross_margin": 70, "fixed_costs": 150000},
+        "Loses money early but ends at 3x MRR"),
+    _build_scenario_template("cash-cow", "Cash Cow",
+        "Mature product, high margin, stable revenue", "🐄",
+        {"starting_mrr": 80000, "monthly_growth_rate": 2, "monthly_churn_rate": 1,
+         "gross_margin": 90, "fixed_costs": 40000},
+        "Consistent profitability, low risk"),
+    _build_scenario_template("turnaround", "Turnaround",
+        "Fighting churn, rebuilding product-market fit", "🔄",
+        {"starting_mrr": 60000, "monthly_growth_rate": 6, "monthly_churn_rate": 8,
+         "gross_margin": 75, "fixed_costs": 50000},
+        "Negative net growth requires urgent action"),
+    _build_scenario_template("efficient-growth", "Efficient Growth",
+        "Balanced approach with sustainable economics", "⚖️",
+        {"starting_mrr": 50000, "monthly_growth_rate": 8, "monthly_churn_rate": 3,
+         "gross_margin": 80, "fixed_costs": 35000},
+        "Good growth with path to profitability"),
 ]
+
+SCENARIO_DEFAULT_INPUTS = {
+    "startingMRR": 50000, "monthlyGrowthRate": 5, "monthlyChurnRate": 3,
+    "grossMargin": 80, "fixedCosts": 30000,
+}
 
 
 # =============================================================================
@@ -666,9 +810,9 @@ SAMPLE_MAP_PLACES = [
 # =============================================================================
 
 SERVER_INSTRUCTIONS = """
-## ChatGPT Widget Server Usage Guide
+## MCP App Widget Server Usage Guide
 
-This MCP server provides interactive widget tools for ChatGPT. Each tool displays
+This MCP server provides interactive widget tools for MCP Apps hosts. Each tool displays
 a specific type of visual content in the chat interface.
 
 ### Tool Selection Guide
@@ -699,8 +843,20 @@ Choose the right tool based on user intent:
 - **show_shop**: E-commerce cart interface. Use for shopping, checkout flows,
   or product quantity management.
 
-- **show_travel_map**: Interactive map with places of interest. Use for travel
-  planning, showing hotels/restaurants/attractions in a specific location.
+- **show_qr**: Generate QR codes from text or URLs. Use for sharing links
+  or encoding information as scannable images.
+
+- **get_scenario_data**: SaaS financial projections. Use for modeling business
+  scenarios with interactive sliders and chart comparison.
+
+- **get_system_info**: Real-time system monitoring. Use for displaying CPU and
+  memory usage with live polling charts.
+
+- **show_map**: Interactive 3D globe. Use for geographic exploration. Pair with
+  the **geocode** tool to find coordinates from place names.
+
+- **geocode**: Search for places using OpenStreetMap (data-only, no widget).
+  Returns coordinates and bounding boxes to use with show_map.
 
 ### Important Notes
 
@@ -710,23 +866,81 @@ Choose the right tool based on user intent:
 - Use the `title` parameter to customize the widget header
 """
 
-mcp = FastMCP(name="boilerplate-server", instructions=SERVER_INSTRUCTIONS, stateless_http=True)
+mcp = FastMCP(
+    name="boilerplate-server",
+    instructions=SERVER_INSTRUCTIONS,
+    stateless_http=True,
+    # Disable DNS rebinding protection when tunneling (e.g. cloudflared).
+    # The tunnel hostname is random and changes each session, so we can't
+    # allowlist it statically.  Re-enable for production with a fixed domain.
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
+)
+
+
+# External CDN domains used by the template widgets
+# Add any external domains your widgets need for images, fonts, or API calls
+EXTERNAL_RESOURCE_DOMAINS: List[str] = [
+    "https://cdn.openai.com",           # Fonts from @openai/apps-sdk-ui
+    "https://images.unsplash.com",      # Sample images in demo widgets
+    "https://persistent.oaistatic.com", # Sample images in demo widgets
+    "https://cesium.com",               # CesiumJS CDN for map widget
+    "https://tile.openstreetmap.org",   # OpenStreetMap tiles for map widget
+]
+
+# Domains that need fetch/XHR access (connect-src).
+# CesiumJS loads assets (JSON, textures, workers) and OSM tiles via fetch.
+EXTERNAL_CONNECT_DOMAINS: List[str] = [
+    "https://cesium.com",               # CesiumJS assets (JSON, textures, workers)
+    "https://tile.openstreetmap.org",   # OpenStreetMap tile images loaded via XHR
+]
+
+
+def get_csp_domains() -> Dict[str, List[str]]:
+    """Return CSP domains based on the current BASE_URL.
+
+    This allows the MCP App sandbox to load external assets (JS, CSS, images)
+    from our server and from external CDNs.
+    """
+    base_url = get_base_url()
+    # Extract origin from base URL (e.g., "http://localhost:8000" from "http://localhost:8000/assets")
+    from urllib.parse import urlparse
+    parsed = urlparse(base_url)
+    origin = f"{parsed.scheme}://{parsed.netloc}"
+
+    # Combine server origin with external CDN domains
+    resource_domains = [origin] + EXTERNAL_RESOURCE_DOMAINS
+    connect_domains = [origin] + EXTERNAL_CONNECT_DOMAINS
+
+    return {
+        "resourceDomains": resource_domains,  # For scripts, styles, images, fonts
+        "connectDomains": connect_domains,    # For fetch/XHR requests
+    }
 
 
 def get_tool_meta(widget: Widget) -> Dict[str, Any]:
+    """Return MCP Apps metadata for a tool.
+
+    The key field is `ui.resourceUri` which links the tool to its UI resource.
+    The `csp` field specifies Content Security Policy domains for the sandbox.
+    This follows the MCP Apps protocol specification.
+    """
     return {
-        "openai/outputTemplate": widget.template_uri,
-        "openai/toolInvocation/invoking": widget.invoking,
-        "openai/toolInvocation/invoked": widget.invoked,
-        "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
+        "ui": {
+            "resourceUri": widget.template_uri,
+            "csp": get_csp_domains(),
+        },
     }
 
 
 def get_invocation_meta(widget: Widget) -> Dict[str, Any]:
+    """Return metadata for tool invocation results."""
     return {
-        "openai/toolInvocation/invoking": widget.invoking,
-        "openai/toolInvocation/invoked": widget.invoked,
+        "ui": {
+            "resourceUri": widget.template_uri,
+            "csp": get_csp_domains(),
+        },
     }
 
 
@@ -744,7 +958,10 @@ WIDGET_INPUT_MODELS: Dict[str, type] = {
     "show_solar_system": SolarSystemInput,
     "show_todo": TodoInput,
     "show_shop": ShopInput,
-    "show_travel_map": TravelMapInput,
+    "show_qr": QrInput,
+    "get_scenario_data": ScenarioModelerInput,
+    "get_system_info": SystemInfoInput,
+    "show_map": ShowMapInput,
 }
 
 
@@ -793,6 +1010,20 @@ async def list_tools() -> List[types.Tool]:
                 "readOnlyHint": True,
             },
         ))
+
+    # Data-only tools: called by widgets via callTool, not intended for LLM use.
+    # They must be registered so MCP hosts can route callTool invocations.
+    tools.append(types.Tool(
+        name="poll_system_stats",
+        title="Poll System Stats",
+        description="Returns live CPU and memory stats. Called by the system monitor widget for polling — not intended for direct LLM use.",
+        inputSchema={"type": "object", "properties": {}, "additionalProperties": False},
+        annotations={
+            "destructiveHint": False,
+            "openWorldHint": False,
+            "readOnlyHint": True,
+        },
+    ))
 
     return tools
 
@@ -849,6 +1080,12 @@ async def handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
     tool_name = req.params.name
     arguments = req.params.arguments or {}
 
+    # Handle data-only tools first (no widget UI)
+    if tool_name == "poll_system_stats":
+        return await handle_poll_system_stats(arguments)
+    elif tool_name == "geocode":
+        return await handle_geocode(arguments)
+
     widget = WIDGETS_BY_ID.get(tool_name)
     if not widget:
         return types.ServerResult(types.CallToolResult(
@@ -873,8 +1110,14 @@ async def handle_call_tool(req: types.CallToolRequest) -> types.ServerResult:
         return await handle_todo(widget, arguments)
     elif tool_name == "show_shop":
         return await handle_shop(widget, arguments)
-    elif tool_name == "show_travel_map":
-        return await handle_travel_map(widget, arguments)
+    elif tool_name == "show_qr":
+        return await handle_qr(widget, arguments)
+    elif tool_name == "get_scenario_data":
+        return await handle_scenario_modeler(widget, arguments)
+    elif tool_name == "get_system_info":
+        return await handle_system_info(widget, arguments)
+    elif tool_name == "show_map":
+        return await handle_show_map(widget, arguments)
     else:
         return types.ServerResult(types.CallToolResult(
             content=[types.TextContent(type="text", text=f"No handler for: {tool_name}")],
@@ -1090,28 +1333,193 @@ async def handle_shop(widget: Widget, arguments: Dict[str, Any]) -> types.Server
     ))
 
 
-async def handle_travel_map(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+async def handle_qr(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
     try:
-        payload = TravelMapInput.model_validate(arguments)
+        payload = QrInput.model_validate(arguments)
     except ValidationError as e:
-        error_msg = format_validation_error(e, TravelMapInput)
+        error_msg = format_validation_error(e, QrInput)
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=error_msg)],
+            isError=True,
+        ))
+
+    error_levels = {
+        "L": qrcode.constants.ERROR_CORRECT_L,
+        "M": qrcode.constants.ERROR_CORRECT_M,
+        "Q": qrcode.constants.ERROR_CORRECT_Q,
+        "H": qrcode.constants.ERROR_CORRECT_H,
+    }
+
+    # Clamp/default to valid values
+    text = payload.text or "https://modelcontextprotocol.io"
+    box_size = max(1, payload.box_size)
+    border = max(0, payload.border)
+    fill_color = payload.fill_color or "black"
+    back_color = payload.back_color or "white"
+    ec_key = (payload.error_correction or "M").upper()
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=error_levels.get(ec_key, qrcode.constants.ERROR_CORRECT_M),
+        box_size=box_size,
+        border=border,
+    )
+    qr.add_data(text)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color=fill_color, back_color=back_color)
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode()
+
+    structured_content = {
+        "imageData": b64,
+        "mimeType": "image/png",
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[
+            types.TextContent(type="text", text=f"QR code generated for: {text}"),
+            types.ImageContent(type="image", data=b64, mimeType="image/png"),
+        ],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_scenario_modeler(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = ScenarioModelerInput.model_validate(arguments)
+    except ValidationError as e:
+        error_msg = format_validation_error(e, ScenarioModelerInput)
         return types.ServerResult(types.CallToolResult(
             content=[types.TextContent(type="text", text=error_msg)],
             isError=True,
         ))
 
     structured_content = {
-        "title": payload.title,
-        "subtitle": payload.subtitle,
-        "places": deepcopy(SAMPLE_MAP_PLACES),
-        "center": {"lat": 37.7949, "lng": -122.4094},
-        "zoom": 13,
+        "templates": deepcopy(SCENARIO_TEMPLATES),
+        "defaultInputs": SCENARIO_DEFAULT_INPUTS,
     }
 
     return types.ServerResult(types.CallToolResult(
-        content=[types.TextContent(type="text", text=f"Travel Map: {payload.title} ({len(SAMPLE_MAP_PLACES)} places)")],
+        content=[types.TextContent(type="text", text=f"SaaS Scenario Modeler ({len(SCENARIO_TEMPLATES)} templates)")],
         structuredContent=structured_content,
         _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_system_info(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        SystemInfoInput.model_validate(arguments)
+    except ValidationError as e:
+        error_msg = format_validation_error(e, SystemInfoInput)
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=error_msg)],
+            isError=True,
+        ))
+
+    info = {
+        "hostname": socket.gethostname(),
+        "platform": f"{platform.system()} {platform.machine()}",
+        "cpu": {
+            "model": platform.processor() or "Unknown",
+            "count": psutil.cpu_count() or 1,
+        },
+        "memory": {
+            "totalBytes": psutil.virtual_memory().total,
+        },
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"System: {info['hostname']} ({info['platform']})")],
+        structuredContent=info,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_poll_system_stats(arguments: Dict[str, Any]) -> types.ServerResult:
+    """App-only handler: returns live CPU and memory stats for polling."""
+    cpu_percents = psutil.cpu_percent(percpu=True)
+    mem = psutil.virtual_memory()
+
+    stats = {
+        "cpuPercents": cpu_percents,
+        "memoryPercent": mem.percent,
+        "memoryUsedGB": round(mem.used / (1024 ** 3), 2),
+        "memoryTotalGB": round(mem.total / (1024 ** 3), 2),
+        "uptime": int(time.time() - psutil.boot_time()),
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"CPU: {cpu_percents}, Memory: {mem.percent}%")],
+        structuredContent=stats,
+    ))
+
+
+async def handle_show_map(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    try:
+        payload = ShowMapInput.model_validate(arguments)
+    except ValidationError as e:
+        error_msg = format_validation_error(e, ShowMapInput)
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=error_msg)],
+            isError=True,
+        ))
+
+    structured_content = {
+        "west": payload.west,
+        "south": payload.south,
+        "east": payload.east,
+        "north": payload.north,
+    }
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text=f"Map: W:{payload.west:.4f} S:{payload.south:.4f} E:{payload.east:.4f} N:{payload.north:.4f}")],
+        structuredContent=structured_content,
+        _meta=get_invocation_meta(widget),
+    ))
+
+
+async def handle_geocode(arguments: Dict[str, Any]) -> types.ServerResult:
+    """Data-only handler: geocodes a location using OpenStreetMap Nominatim."""
+    import httpx
+
+    try:
+        payload = GeocodeInput.model_validate(arguments)
+    except ValidationError as e:
+        error_msg = format_validation_error(e, GeocodeInput)
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=error_msg)],
+            isError=True,
+        ))
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": payload.query, "format": "json", "limit": "5"},
+            headers={"User-Agent": "MCP-App-Template/1.0"},
+        )
+        response.raise_for_status()
+        results = response.json()
+
+    if not results:
+        return types.ServerResult(types.CallToolResult(
+            content=[types.TextContent(type="text", text=f'No results found for "{payload.query}"')],
+        ))
+
+    formatted = []
+    for r in results:
+        bb = r.get("boundingbox", ["0", "0", "0", "0"])
+        formatted.append(
+            f"{r['display_name']}\n"
+            f"  Coordinates: {r['lat']}, {r['lon']}\n"
+            f"  Bounding box: W:{bb[2]}, S:{bb[0]}, E:{bb[3]}, N:{bb[1]}"
+        )
+
+    return types.ServerResult(types.CallToolResult(
+        content=[types.TextContent(type="text", text="\n\n".join(formatted))],
     ))
 
 
@@ -1124,7 +1532,32 @@ mcp._mcp_server.request_handlers[types.ReadResourceRequest] = handle_read_resour
 # HTTP APP SETUP
 # =============================================================================
 
-app = mcp.streamable_http_app()
+_inner_app = mcp.streamable_http_app()
+
+
+async def app(scope, receive, send):
+    """ASGI wrapper that starts the sandbox server on first request.
+
+    We can't start the sandbox server at module import time because that would
+    cause side effects when tests import this module. Instead, we start it
+    lazily on the first ASGI lifespan/request event.
+    """
+    if scope["type"] == "lifespan":
+        # Start sandbox server during ASGI lifespan startup
+        async def _wrapped_receive():
+            message = await receive()
+            if message["type"] == "lifespan.startup":
+                start_sandbox_server(8001)
+            return message
+        await _inner_app(scope, _wrapped_receive, send)
+    else:
+        await _inner_app(scope, receive, send)
+
+
+# Expose the inner app's attributes so middleware/routes can be added
+app.add_middleware = _inner_app.add_middleware  # type: ignore[attr-defined]
+app.mount = _inner_app.mount  # type: ignore[attr-defined]
+app.routes = _inner_app.routes  # type: ignore[attr-defined]
 
 try:
     from starlette.middleware.cors import CORSMiddleware
@@ -1139,7 +1572,6 @@ try:
         app.mount("/assets", StaticFiles(directory=ASSETS_DIR), name="assets")
 except Exception:
     pass
-
 
 # =============================================================================
 # SIMULATOR CHAT API
@@ -1268,26 +1700,25 @@ async def chat_status_endpoint(request: Request) -> JSONResponse:
 async def tools_list_endpoint(request: Request) -> JSONResponse:
     """
     Return tool definitions in OpenAI function calling format.
-    Used by Puter.js fallback to get available tools.
+    Used by Puter.js fallback and the apptester to get available tools.
+
+    IMPORTANT: Only returns widget tools (tools that produce HTML).
+    Helper tools (poll_system_stats, geocode, etc.) are excluded because
+    the apptester renders tools as widgets — calling a non-widget tool
+    would crash with 'Cannot read properties of undefined (reading replace)'.
+    Helper tools are still callable via /tools/call and registered in
+    the MCP list_tools() for MCP host routing.
     """
     tools = []
 
     for widget in WIDGETS:
+        schema = get_tool_schema(widget.identifier)
         tools.append({
             "type": "function",
             "function": {
                 "name": widget.identifier,
                 "description": widget.description,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "title": {
-                            "type": "string",
-                            "description": "Widget title"
-                        }
-                    },
-                    "required": []
-                }
+                "parameters": schema,
             }
         })
 
@@ -1298,6 +1729,7 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
     """
     Execute a tool and return the result.
     Used by Puter.js fallback to call MCP tools.
+    Handles both widget tools (with HTML) and data-only tools (no HTML).
     """
     try:
         body = await request.json()
@@ -1306,10 +1738,6 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
 
         if not tool_name:
             return JSONResponse({"error": "Missing tool name"}, status_code=400)
-
-        widget = WIDGETS_BY_ID.get(tool_name)
-        if not widget:
-            return JSONResponse({"error": f"Unknown tool: {tool_name}"}, status_code=404)
 
         # Create a mock request and call the handler
         import mcp.types as types
@@ -1320,17 +1748,27 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
 
         result = await handle_call_tool(mock_req)
 
+        # Check if the handler returned an error
+        if hasattr(result, 'root') and getattr(result.root, 'isError', False):
+            error_text = result.root.content[0].text if result.root.content else "Unknown error"
+            return JSONResponse({"error": error_text}, status_code=404)
+
         # Extract structured content from result
         if hasattr(result, 'root') and hasattr(result.root, 'structuredContent'):
             structured_content = result.root.structuredContent
         else:
             structured_content = {}
 
-        return JSONResponse({
+        # Widget tools include HTML; data-only tools return just the output
+        widget = WIDGETS_BY_ID.get(tool_name)
+        response: Dict[str, Any] = {
             "tool_name": tool_name,
-            "html": widget.html,
             "tool_output": structured_content,
-        })
+        }
+        if widget:
+            response["html"] = widget.html
+
+        return JSONResponse(response)
 
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -1345,6 +1783,87 @@ app.routes.append(Route("/tools/call", tool_call_endpoint, methods=["POST"]))
 
 
 # =============================================================================
+# SANDBOX PROXY SERVER (Port 8001)
+# =============================================================================
+
+import threading
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+
+
+class SandboxProxyHandler(SimpleHTTPRequestHandler):
+    """HTTP handler that serves sandbox proxy with CSP headers.
+
+    This runs on a different port (8001) to provide origin isolation.
+    The CSP headers are applied based on query parameters or defaults.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Serve from assets directory
+        super().__init__(*args, directory=str(ASSETS_DIR), **kwargs)
+
+    def end_headers(self):
+        # Parse CSP from query params
+        parsed = urlparse(self.path)
+        query = parse_qs(parsed.query)
+
+        # Build CSP directives
+        resource_domains = query.get("resourceDomains", [])
+        connect_domains = query.get("connectDomains", [])
+
+        # Default domains if not specified
+        csp_domains = get_csp_domains()
+        if not resource_domains:
+            resource_domains = csp_domains.get("resourceDomains", [])
+        if not connect_domains:
+            connect_domains = csp_domains.get("connectDomains", [])
+
+        # Build CSP string
+        resource_src = " ".join(resource_domains) if resource_domains else "'self'"
+        connect_src = " ".join(connect_domains) if connect_domains else "'self'"
+
+        csp = (
+            f"default-src 'self'; "
+            f"script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: {resource_src}; "
+            f"style-src 'self' 'unsafe-inline' {resource_src}; "
+            f"img-src 'self' data: blob: {resource_src}; "
+            f"font-src 'self' data: {resource_src}; "
+            f"connect-src 'self' {connect_src}; "
+            f"frame-src 'self' blob:; "
+            f"worker-src 'self' blob: {resource_src};"
+        )
+
+        self.send_header("Content-Security-Policy", csp)
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        """Handle CORS preflight requests."""
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, format, *args):
+        """Prefix log messages to distinguish from main server."""
+        print(f"[Sandbox:8001] {args[0]}")
+
+
+def start_sandbox_server(port: int = 8001) -> HTTPServer:
+    """Start the sandbox proxy server on a separate port.
+
+    This provides origin isolation for the MCP Apps sandbox.
+    Raises OSError if the port is already in use.
+    """
+    server = HTTPServer(("0.0.0.0", port), SandboxProxyHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    print(f"Sandbox proxy server listening on http://0.0.0.0:{port}")
+    return server
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 
@@ -1352,7 +1871,7 @@ if __name__ == "__main__":
     import uvicorn
 
     print("\n" + "=" * 60)
-    print("ChatGPT App Template - MCP Server")
+    print("MCP App Template - MCP Server")
     print("=" * 60)
     print("\nAvailable widgets:")
     for w in WIDGETS:
@@ -1361,6 +1880,7 @@ if __name__ == "__main__":
     print("\nServer: http://0.0.0.0:8000")
     print("MCP endpoint: http://0.0.0.0:8000/mcp")
     print("Assets: http://0.0.0.0:8000/assets/")
+    print("Sandbox: http://0.0.0.0:8001 (origin isolation)")
     print("=" * 60 + "\n")
 
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

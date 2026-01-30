@@ -162,7 +162,8 @@ class TestAssetsDirectory:
         assert ASSETS_DIR.name == "assets"
 
     def test_mime_type_correct(self):
-        """MIME_TYPE is correct for ChatGPT widgets."""
+        """MIME_TYPE is correct for MCP Apps."""
         from main import MIME_TYPE
 
-        assert MIME_TYPE == "text/html+skybridge"
+        # MCP Apps require the profile parameter to signal this is an MCP App resource
+        assert MIME_TYPE == "text/html;profile=mcp-app"

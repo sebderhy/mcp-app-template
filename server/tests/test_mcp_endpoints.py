@@ -52,14 +52,12 @@ class TestListTools:
         from main import get_tool_meta, WIDGETS
 
         # Test that get_tool_meta returns correct structure for each widget
-        # (The actual attachment to Tool is handled by MCP library)
+        # MCP Apps uses _meta.ui.resourceUri to link tools to their UI
         for widget in WIDGETS:
             meta = get_tool_meta(widget)
-            assert "openai/outputTemplate" in meta, "Tool must have outputTemplate"
-            assert "openai/toolInvocation/invoking" in meta, "Tool must have invoking message"
-            assert "openai/toolInvocation/invoked" in meta, "Tool must have invoked message"
-            assert meta["openai/widgetAccessible"] is True
-            assert meta["openai/resultCanProduceWidget"] is True
+            assert "ui" in meta, "Tool must have ui metadata section"
+            assert "resourceUri" in meta["ui"], "Tool must have ui.resourceUri"
+            assert meta["ui"]["resourceUri"] == widget.template_uri
 
     @pytest.mark.asyncio
     async def test_tools_have_correct_annotations(self):
@@ -76,13 +74,78 @@ class TestListTools:
             assert tool.annotations.readOnlyHint is True
 
     @pytest.mark.asyncio
-    async def test_tool_count_matches_widgets(self):
-        """Number of tools matches number of widgets."""
+    async def test_tool_count_includes_widgets_and_helpers(self):
+        """Number of tools is at least the number of widgets (may include helper tools)."""
         from main import list_tools, WIDGETS
 
         tools = await list_tools()
 
-        assert len(tools) == len(WIDGETS)
+        assert len(tools) >= len(WIDGETS)
+        # Every widget must have a corresponding tool
+        tool_names = {t.name for t in tools}
+        for widget in WIDGETS:
+            assert widget.identifier in tool_names, f"Widget '{widget.identifier}' has no tool"
+
+
+class TestToolsHttpEndpoint:
+    """Tests for the HTTP /tools endpoint used by the apptester.
+
+    The HTTP /tools endpoint serves the apptester and Puter.js.
+    It must ONLY return widget tools (tools that produce HTML).
+    Helper tools (poll_system_stats, geocode, etc.) must NOT appear
+    because the apptester will try to render them and crash.
+    """
+
+    @pytest.mark.asyncio
+    async def test_http_tools_only_returns_widget_tools(self):
+        """HTTP /tools must only return tools that have a corresponding widget with HTML."""
+        from main import tools_list_endpoint, WIDGETS_BY_ID
+        from starlette.testclient import TestClient
+
+        response = await tools_list_endpoint(None)
+        import json
+        data = json.loads(response.body)
+        tool_names = [t["function"]["name"] for t in data["tools"]]
+
+        for name in tool_names:
+            assert name in WIDGETS_BY_ID, (
+                f"HTTP /tools includes '{name}' which is not a widget. "
+                f"Non-widget tools must not appear in the HTTP /tools endpoint "
+                f"because the apptester will try to render them and crash."
+            )
+
+    @pytest.mark.asyncio
+    async def test_http_tools_count_matches_widgets(self):
+        """HTTP /tools must return exactly the number of widgets."""
+        from main import tools_list_endpoint, WIDGETS
+        import json
+
+        response = await tools_list_endpoint(None)
+        data = json.loads(response.body)
+
+        assert len(data["tools"]) == len(WIDGETS), (
+            f"HTTP /tools returned {len(data['tools'])} tools but there are {len(WIDGETS)} widgets. "
+            f"Helper tools should not be in the HTTP /tools response."
+        )
+
+    @pytest.mark.asyncio
+    async def test_helper_tools_are_callable_via_handle_call_tool(self):
+        """Helper tools (not in WIDGETS) must still be callable via handle_call_tool."""
+        from main import list_tools, WIDGETS_BY_ID, handle_call_tool
+
+        all_tools = await list_tools()
+        helper_tools = [t for t in all_tools if t.name not in WIDGETS_BY_ID]
+
+        for tool in helper_tools:
+            request = types.CallToolRequest(
+                method="tools/call",
+                params=types.CallToolRequestParams(name=tool.name, arguments={}),
+            )
+            result = await handle_call_tool(request)
+            assert result.root.isError is not True, (
+                f"Helper tool '{tool.name}' is registered in list_tools() but "
+                f"handle_call_tool returns an error"
+            )
 
 
 class TestListResources:
@@ -289,14 +352,13 @@ class TestMetadataHelpers:
 
         meta = get_tool_meta(widget)
 
-        assert "openai/outputTemplate" in meta
-        assert "openai/toolInvocation/invoking" in meta
-        assert "openai/toolInvocation/invoked" in meta
-        assert "openai/widgetAccessible" in meta
-        assert "openai/resultCanProduceWidget" in meta
+        # MCP Apps uses ui.resourceUri to link tools to UI resources
+        assert "ui" in meta
+        assert "resourceUri" in meta["ui"]
+        assert meta["ui"]["resourceUri"] == widget.template_uri
 
-    def test_get_invocation_meta_returns_invocation_keys(self):
-        """get_invocation_meta returns invocation metadata."""
+    def test_get_invocation_meta_returns_ui_metadata(self):
+        """get_invocation_meta returns UI metadata."""
         from main import get_invocation_meta, Widget
 
         widget = Widget(
@@ -311,7 +373,6 @@ class TestMetadataHelpers:
 
         meta = get_invocation_meta(widget)
 
-        assert "openai/toolInvocation/invoking" in meta
-        assert "openai/toolInvocation/invoked" in meta
-        # Should NOT include outputTemplate (that's only for tool definition)
-        assert "openai/outputTemplate" not in meta
+        # MCP Apps uses ui.resourceUri for all UI-related metadata
+        assert "ui" in meta
+        assert "resourceUri" in meta["ui"]
