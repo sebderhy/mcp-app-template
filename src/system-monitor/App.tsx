@@ -206,40 +206,55 @@ export default function App() {
     // Use the legacy callTool bridge to call the app-only tool
     if (!window.openai?.callTool) return;
 
-    const result = await window.openai?.callTool("poll_system_stats", {});
-    if (!result) return;
+    try {
+      const result = await window.openai?.callTool("poll_system_stats", {});
+      if (!result) return;
 
-    // Parse the result - it comes back as structured content from callTool
-    let stats: PollStats;
-    if (typeof result === "object" && "cpuPercents" in result) {
-      stats = result as unknown as PollStats;
-    } else if (typeof result === "string") {
-      stats = JSON.parse(result);
-    } else {
-      return;
+      // Parse the result - handle both direct structured content and
+      // content-wrapped responses from the host bridge
+      let stats: PollStats;
+      if (typeof result === "object" && "cpuPercents" in result) {
+        stats = result as unknown as PollStats;
+      } else if (typeof result === "object" && "content" in result) {
+        const content = (result as { content: { type: string; text: string }[] }).content;
+        const text = content?.[0]?.text;
+        if (text) {
+          stats = JSON.parse(text);
+        } else {
+          return;
+        }
+      } else if (typeof result === "string") {
+        stats = JSON.parse(result);
+      } else {
+        return;
+      }
+
+      // Update CPU history
+      cpuHistoryRef.current.push(stats.cpuPercents);
+      labelsRef.current.push(new Date().toLocaleTimeString());
+
+      if (cpuHistoryRef.current.length > HISTORY_LENGTH) {
+        cpuHistoryRef.current.shift();
+        labelsRef.current.shift();
+      }
+
+      updateChart(cpuHistoryRef.current, labelsRef.current);
+
+      // Update memory
+      setMemPercent(stats.memoryPercent);
+      setMemDetail(`${stats.memoryUsedGB.toFixed(1)} GB / ${stats.memoryTotalGB.toFixed(1)} GB`);
+
+      // Update uptime
+      setUptime(formatUptime(stats.uptime));
+
+      const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+      setStatusText(time);
+      setStatusClass("polling");
+    } catch (err) {
+      console.error("[SystemMonitor] fetchStats error:", err);
+      setStatusText("Error");
+      setStatusClass("");
     }
-
-    // Update CPU history
-    cpuHistoryRef.current.push(stats.cpuPercents);
-    labelsRef.current.push(new Date().toLocaleTimeString());
-
-    if (cpuHistoryRef.current.length > HISTORY_LENGTH) {
-      cpuHistoryRef.current.shift();
-      labelsRef.current.shift();
-    }
-
-    updateChart(cpuHistoryRef.current, labelsRef.current);
-
-    // Update memory
-    setMemPercent(stats.memoryPercent);
-    setMemDetail(`${stats.memoryUsedGB.toFixed(1)} GB / ${stats.memoryTotalGB.toFixed(1)} GB`);
-
-    // Update uptime
-    setUptime(formatUptime(stats.uptime));
-
-    const time = new Date().toLocaleTimeString("en-US", { hour12: false });
-    setStatusText(time);
-    setStatusClass("polling");
   }, [updateChart]);
 
   const startPolling = useCallback(() => {
