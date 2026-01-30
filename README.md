@@ -9,7 +9,7 @@ Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, a
 Most templates assume a human developer. This one is designed for AI agents to work as much as possible autonomously:
 
 ### 1. Orthogonal Test Suite
-340 tests verify infrastructure (MCP Apps compliance, protocol format, accessibility, browser rendering) - not your business logic. Modify widgets, change data, add features - tests should still pass. Automated grading generates reports with actionable `FIX:` hints and references to steer coding agents on what to change.
+~220 shared tests verify infrastructure (MCP Apps compliance, protocol format, accessibility, browser rendering) — not your business logic. Another ~18 tests per widget are auto-discovered (input validation, build output, browser rendering) — you never write them, they appear automatically when you add a widget. Modify widgets, change data, add features — tests still pass. Automated grading generates reports with actionable `FIX:` hints to steer coding agents.
 
 ### 2. Hierarchical Documentation
 `AGENTS.md` for quick onboarding → `docs/README.md` for a step-by-step building guide → deep docs covering MCP best practices, widget patterns, and complete SDK reference (`llms-full.txt`).

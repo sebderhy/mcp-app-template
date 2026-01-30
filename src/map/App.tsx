@@ -81,6 +81,14 @@ function initViewer(container: HTMLElement): any {
   viewer.canvas.style.imageRendering = "auto";
   viewer.scene.postProcessStages.fxaa.enabled = false;
 
+  // Cesium injects credit images without alt attrs; patch for accessibility
+  const fixAlt = () =>
+    container.querySelectorAll("img:not([alt])").forEach((img: Element) => {
+      img.setAttribute("alt", "");
+    });
+  fixAlt();
+  new MutationObserver(fixAlt).observe(container, { childList: true, subtree: true });
+
   // Add OpenStreetMap tiles
   const osmProvider = new Cesium.UrlTemplateImageryProvider({
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",

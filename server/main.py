@@ -878,6 +878,13 @@ EXTERNAL_RESOURCE_DOMAINS: List[str] = [
     "https://tile.openstreetmap.org",   # OpenStreetMap tiles for map widget
 ]
 
+# Domains that need fetch/XHR access (connect-src).
+# CesiumJS loads assets (JSON, textures, workers) and OSM tiles via fetch.
+EXTERNAL_CONNECT_DOMAINS: List[str] = [
+    "https://cesium.com",               # CesiumJS assets (JSON, textures, workers)
+    "https://tile.openstreetmap.org",   # OpenStreetMap tile images loaded via XHR
+]
+
 
 def get_csp_domains() -> Dict[str, List[str]]:
     """Return CSP domains based on the current BASE_URL.
@@ -893,10 +900,11 @@ def get_csp_domains() -> Dict[str, List[str]]:
 
     # Combine server origin with external CDN domains
     resource_domains = [origin] + EXTERNAL_RESOURCE_DOMAINS
+    connect_domains = [origin] + EXTERNAL_CONNECT_DOMAINS
 
     return {
         "resourceDomains": resource_domains,  # For scripts, styles, images, fonts
-        "connectDomains": [origin],           # For fetch/XHR requests (add external APIs here if needed)
+        "connectDomains": connect_domains,    # For fetch/XHR requests
     }
 
 
@@ -1795,7 +1803,7 @@ class SandboxProxyHandler(SimpleHTTPRequestHandler):
             f"font-src 'self' data: {resource_src}; "
             f"connect-src 'self' {connect_src}; "
             f"frame-src 'self' blob:; "
-            f"worker-src 'self' blob:;"
+            f"worker-src 'self' blob: {resource_src};"
         )
 
         self.send_header("Content-Security-Policy", csp)

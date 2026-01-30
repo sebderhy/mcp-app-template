@@ -232,7 +232,7 @@ export default function McpAppRenderer({
           // Send the HTML to render
           sendNotification(SANDBOX_RESOURCE_READY_METHOD, {
             html: injectLegacyBridge(html, theme, displayMode, toolOutput),
-            sandbox: "allow-scripts allow-forms",
+            sandbox: "allow-scripts allow-forms allow-same-origin",
             permissions: "",
           });
           break;
