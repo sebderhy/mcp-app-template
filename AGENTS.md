@@ -115,6 +115,7 @@ Browser tests (`tests/browser/*.spec.ts`) run each widget in a real Chromium bro
 | No unhandled rejections | Async errors, failed API calls |
 | Images have alt text | Accessibility issues for screen readers |
 | No duplicate IDs | HTML validity issues |
+| callTool invocations callable | Widget calls tools that don't exist on server |
 | Text contrast (warning) | WCAG AA contrast ratio violations |
 | Keyboard accessible (warning) | Missing tabindex or ARIA roles |
 
