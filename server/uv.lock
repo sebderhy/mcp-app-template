@@ -166,7 +166,7 @@ wheels = [
 ]
 
 [[package]]
-name = "chatgpt-app-server"
+name = "mcp-app-server"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

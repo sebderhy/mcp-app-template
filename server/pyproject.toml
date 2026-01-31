@@ -1,7 +1,7 @@
 [project]
-name = "chatgpt-app-server"
+name = "mcp-app-server"
 version = "0.1.0"
-description = "MCP server for ChatGPT App widgets"
+description = "MCP server for MCP App widgets"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",

@@ -39,7 +39,7 @@ function multiEntryDevEndpoints(options: {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>ChatGPT App Boilerplate - Dev Server</title>
+  <title>MCP App Boilerplate - Dev Server</title>
   <style>
     body { font: 15px/1.5 system-ui, sans-serif; margin: 32px; color: #1f2933; }
     h1 { font-size: 20px; margin-bottom: 12px; }
@@ -51,7 +51,7 @@ function multiEntryDevEndpoints(options: {
   </style>
 </head>
 <body>
-  <h1>ChatGPT App Widgets</h1>
+  <h1>MCP App Widgets</h1>
   <ul>
     ${names
       .toSorted()

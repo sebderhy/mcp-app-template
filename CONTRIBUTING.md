@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for your interest in contributing to this ChatGPT App Template!
+Thank you for your interest in contributing to this MCP App Template!
 
 ## How to Contribute
 

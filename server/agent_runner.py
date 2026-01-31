@@ -1,5 +1,5 @@
 """
-Agent Runner for Local ChatGPT Simulator
+Agent Runner for Local MCP Apps Simulator
 
 Uses OpenAI Agents SDK with MCP to connect prompts to widget tools.
 https://openai.github.io/openai-agents-python/mcp/
@@ -100,7 +100,7 @@ def get_widget_html(tool_name: str) -> str:
 async def create_mcp_server() -> MCPServerStreamableHttp:
     """Create MCP server connection."""
     return MCPServerStreamableHttp(
-        name="chatgpt-widgets",
+        name="mcp-widgets",
         params={
             "url": MCP_SERVER_URL,
         },

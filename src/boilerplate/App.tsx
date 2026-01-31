@@ -1,7 +1,7 @@
 /**
- * Boilerplate ChatGPT Widget
+ * Boilerplate MCP App Widget
  *
- * This widget demonstrates all key features of the ChatGPT Apps SDK:
+ * This widget demonstrates all key features of the MCP Apps protocol:
  * - Reading tool output (structuredContent from your MCP server)
  * - Persisting widget state across renders
  * - Calling other MCP tools from the widget
@@ -39,7 +39,7 @@ type WidgetState = {
 // Default values when no tool output is provided
 const defaultProps: ToolOutput = {
   title: "Boilerplate Widget",
-  message: "This is a boilerplate ChatGPT widget. Call your MCP tool to see real data!",
+  message: "This is a boilerplate MCP App widget. Call your MCP tool to see real data!",
   items: [
     { id: "1", name: "Sample Item 1", description: "This is a sample item" },
     { id: "2", name: "Sample Item 2", description: "Another sample item" },
@@ -52,7 +52,7 @@ export default function App() {
   // Read structured content from your MCP tool
   const props = useWidgetProps<ToolOutput>(defaultProps);
 
-  // Persist widget state on the ChatGPT host
+  // Persist widget state on the MCP Apps host
   const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
     selectedItemId: null,
     counter: 0,
@@ -265,7 +265,7 @@ export default function App() {
       {/* Footer */}
       <footer className="px-4 py-3 border-t border-default bg-subtle">
         <div className="flex items-center justify-between text-xs text-tertiary">
-          <span>ChatGPT App Boilerplate</span>
+          <span>MCP App Boilerplate</span>
           <span>maxHeight: {maxHeight ?? "auto"}</span>
         </div>
       </footer>
