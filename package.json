@@ -33,7 +33,7 @@
     "chatgpt",
     "widgets"
   ],
-  "author": "",
+  "author": "Sebastien Derhy",
   "license": "MIT",
   "packageManager": "pnpm@10.24.0",
   "devDependencies": {

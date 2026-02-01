@@ -26,16 +26,14 @@ Thank you for your interest in contributing to this MCP App Template!
 ### Development Setup
 
 ```bash
-# Install dependencies
+# Full setup (installs deps, builds, runs tests)
+./setup.sh
+
+# Or manually:
 pnpm install
-
-# Set up Python environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-pip install -r server/requirements.txt
-
-# Run development server
-pnpm run dev
+cd server && python3 -m venv .venv && .venv/bin/pip install -e ".[dev]" && cd ..
+pnpm run build
+pnpm run test
 ```
 
 ### Code Style
