@@ -3,7 +3,7 @@
  * UI Test Tool for AI Agents
  *
  * Enables Coding Agents (Claude Code, Codex, Cursor, etc.) to autonomously test the
- * ChatGPT simulator by sending messages and capturing screenshots.
+ * MCP Apps simulator by sending messages and capturing screenshots.
  *
  * Two modes:
  * 1. AI Mode (requires OPENAI_API_KEY): Full AI-in-the-loop testing

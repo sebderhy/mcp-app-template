@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ChatGPT App Template - Setup Script
+# MCP App Template - Setup Script
 # This script sets up the repository for the first time
 #
 # Usage:

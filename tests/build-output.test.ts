@@ -2,7 +2,7 @@
  * Build Output Tests - Infrastructure tests for widget build artifacts.
  *
  * These tests verify that `pnpm run build` produces the expected output
- * structure required for ChatGPT Apps SDK integration.
+ * structure required for MCP Apps integration.
  *
  * Key requirements verified:
  * 1. Build produces JS, CSS, and HTML files for each widget
