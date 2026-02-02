@@ -62,7 +62,7 @@ class Widget:
     template_uri: str
     invoking: str
     invoked: str
-    html: str
+    component_name: str
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -79,16 +79,34 @@ _DEFAULT_BASE_URL = "http://localhost:8000/assets"
 
 # Cache for loaded HTML with resolved URLs (keyed by component name)
 _html_cache: Dict[str, str] = {}
+_html_mtimes: Dict[str, float] = {}
 
 
 def _clear_html_cache() -> None:
     """Clear the HTML cache. Used by tests."""
     _html_cache.clear()
+    _html_mtimes.clear()
 
 
 def get_base_url() -> str:
     """Get the base URL for assets from environment or use default."""
     return os.environ.get("BASE_URL", _DEFAULT_BASE_URL).rstrip("/")
+
+
+def _resolve_html_path(component_name: str) -> Path:
+    """Find the HTML file for a component, raising if not found."""
+    html_path = ASSETS_DIR / f"{component_name}.html"
+    if html_path.exists():
+        return html_path
+
+    fallback_candidates = sorted(ASSETS_DIR.glob(f"{component_name}-*.html"))
+    if fallback_candidates:
+        return fallback_candidates[-1]
+
+    raise FileNotFoundError(
+        f'Widget HTML for "{component_name}" not found in {ASSETS_DIR}. '
+        "Run `pnpm run build` from the repo root to generate the assets."
+    )
 
 
 def load_widget_html(component_name: str) -> str:
@@ -98,23 +116,17 @@ def load_widget_html(component_name: str) -> str:
     This is needed because widget HTML is injected into iframes via srcdoc,
     where relative paths don't resolve correctly.
 
-    Results are cached per component name.
+    Results are cached per component name. The cache is automatically
+    invalidated when the file's modification time changes, so rebuilding
+    widgets takes effect without restarting the server.
     """
-    if component_name in _html_cache:
+    html_path = _resolve_html_path(component_name)
+    current_mtime = html_path.stat().st_mtime
+
+    if component_name in _html_cache and _html_mtimes.get(component_name) == current_mtime:
         return _html_cache[component_name]
 
-    html_path = ASSETS_DIR / f"{component_name}.html"
-    if html_path.exists():
-        html = html_path.read_text(encoding="utf8")
-    else:
-        fallback_candidates = sorted(ASSETS_DIR.glob(f"{component_name}-*.html"))
-        if fallback_candidates:
-            html = fallback_candidates[-1].read_text(encoding="utf8")
-        else:
-            raise FileNotFoundError(
-                f'Widget HTML for "{component_name}" not found in {ASSETS_DIR}. '
-                "Run `pnpm run build` from the repo root to generate the assets."
-            )
+    html = html_path.read_text(encoding="utf8")
 
     # Convert relative paths to absolute URLs for srcdoc iframe compatibility
     # HTML files use "./" prefix which works for static serving but not srcdoc
@@ -123,6 +135,7 @@ def load_widget_html(component_name: str) -> str:
     html = html.replace('href="./', f'href="{base_url}/')
 
     _html_cache[component_name] = html
+    _html_mtimes[component_name] = current_mtime
     return html
 
 
@@ -160,7 +173,7 @@ Example:
             template_uri="ui://widget/boilerplate.html",
             invoking="Loading card widget...",
             invoked="Card widget ready",
-            html=load_widget_html("boilerplate"),
+            component_name="boilerplate",
         ),
         Widget(
             identifier="show_carousel",
@@ -189,7 +202,7 @@ Example:
             template_uri="ui://widget/carousel.html",
             invoking="Loading carousel...",
             invoked="Carousel ready",
-            html=load_widget_html("carousel"),
+            component_name="carousel",
         ),
         Widget(
             identifier="show_list",
@@ -219,7 +232,7 @@ Example:
             template_uri="ui://widget/list.html",
             invoking="Loading list...",
             invoked="List ready",
-            html=load_widget_html("list"),
+            component_name="list",
         ),
         Widget(
             identifier="show_gallery",
@@ -247,7 +260,7 @@ Example:
             template_uri="ui://widget/gallery.html",
             invoking="Loading gallery...",
             invoked="Gallery ready",
-            html=load_widget_html("gallery"),
+            component_name="gallery",
         ),
         Widget(
             identifier="show_dashboard",
@@ -274,7 +287,7 @@ Example:
             template_uri="ui://widget/dashboard.html",
             invoking="Loading dashboard...",
             invoked="Dashboard ready",
-            html=load_widget_html("dashboard"),
+            component_name="dashboard",
         ),
         Widget(
             identifier="show_solar_system",
@@ -301,7 +314,7 @@ Example:
             template_uri="ui://widget/solar-system.html",
             invoking="Loading solar system...",
             invoked="Solar system ready",
-            html=load_widget_html("solar-system"),
+            component_name="solar-system",
         ),
         Widget(
             identifier="show_todo",
@@ -329,7 +342,7 @@ Example:
             template_uri="ui://widget/todo.html",
             invoking="Loading todo list...",
             invoked="Todo list ready",
-            html=load_widget_html("todo"),
+            component_name="todo",
         ),
         Widget(
             identifier="show_shop",
@@ -357,7 +370,7 @@ Example:
             template_uri="ui://widget/shop.html",
             invoking="Loading shopping cart...",
             invoked="Shopping cart ready",
-            html=load_widget_html("shop"),
+            component_name="shop",
         ),
         Widget(
             identifier="show_qr",
@@ -382,7 +395,7 @@ Example:
             template_uri="ui://widget/qr.html",
             invoking="Generating QR code...",
             invoked="QR code ready",
-            html=load_widget_html("qr"),
+            component_name="qr",
         ),
         Widget(
             identifier="get_scenario_data",
@@ -411,7 +424,7 @@ Example:
             template_uri="ui://widget/scenario-modeler.html",
             invoking="Loading scenario modeler...",
             invoked="Scenario modeler ready",
-            html=load_widget_html("scenario-modeler"),
+            component_name="scenario-modeler",
         ),
         Widget(
             identifier="get_system_info",
@@ -437,7 +450,7 @@ Example:
             template_uri="ui://widget/system-monitor.html",
             invoking="Loading system monitor...",
             invoked="System monitor ready",
-            html=load_widget_html("system-monitor"),
+            component_name="system-monitor",
         ),
         Widget(
             identifier="show_map",
@@ -465,18 +478,12 @@ Example:
             template_uri="ui://widget/map.html",
             invoking="Loading map...",
             invoked="Map ready",
-            html=load_widget_html("map"),
+            component_name="map",
         ),
     ]
 
 
-# Initialize widgets (lazy loading to handle missing assets gracefully)
-try:
-    WIDGETS = create_widgets()
-except FileNotFoundError as e:
-    print(f"Warning: {e}")
-    print("Some widgets may not be available. Run `pnpm run build` first.")
-    WIDGETS = []
+WIDGETS = create_widgets()
 
 WIDGETS_BY_ID: Dict[str, Widget] = {w.identifier: w for w in WIDGETS}
 WIDGETS_BY_URI: Dict[str, Widget] = {w.template_uri: w for w in WIDGETS}
@@ -1072,7 +1079,7 @@ async def handle_read_resource(req: types.ReadResourceRequest) -> types.ServerRe
         return types.ServerResult(types.ReadResourceResult(contents=[], _meta={"error": f"Unknown resource: {req.params.uri}"}))
 
     return types.ServerResult(types.ReadResourceResult(contents=[
-        types.TextResourceContents(uri=widget.template_uri, mimeType=MIME_TYPE, text=widget.html, _meta=get_tool_meta(widget))
+        types.TextResourceContents(uri=widget.template_uri, mimeType=MIME_TYPE, text=load_widget_html(widget.component_name), _meta=get_tool_meta(widget))
     ]))
 
 
@@ -1766,7 +1773,7 @@ async def tool_call_endpoint(request: Request) -> JSONResponse:
             "tool_output": structured_content,
         }
         if widget:
-            response["html"] = widget.html
+            response["html"] = load_widget_html(widget.component_name)
 
         return JSONResponse(response)
 

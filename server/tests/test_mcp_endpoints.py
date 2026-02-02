@@ -347,7 +347,7 @@ class TestMetadataHelpers:
             template_uri="ui://widget/test.html",
             invoking="Loading...",
             invoked="Ready",
-            html="<html></html>",
+            component_name="test",
         )
 
         meta = get_tool_meta(widget)
@@ -368,7 +368,7 @@ class TestMetadataHelpers:
             template_uri="ui://widget/test.html",
             invoking="Loading widget...",
             invoked="Widget ready",
-            html="<html></html>",
+            component_name="test",
         )
 
         meta = get_invocation_meta(widget)

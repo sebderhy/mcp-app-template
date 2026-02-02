@@ -24,20 +24,20 @@ import path from "path";
 
 const assetsDir = path.resolve("assets");
 
-// Read the targets array from build-all.mts to stay in sync
+// Auto-discover widget targets by scanning src/*/index.tsx (mirrors build-all.mts)
 function getWidgetTargets(): string[] {
-  const buildScript = fs.readFileSync(
-    path.resolve("build-all.mts"),
-    "utf-8"
-  );
-  const match = buildScript.match(/const targets:\s*string\[\]\s*=\s*\[([\s\S]*?)\]/);
-  if (!match) {
-    throw new Error("Could not find targets array in build-all.mts");
-  }
-  return match[1]
-    .split(",")
-    .map((s) => s.trim().replace(/["']/g, ""))
-    .filter((s) => s.length > 0);
+  const srcDir = path.resolve("src");
+  return fs
+    .readdirSync(srcDir)
+    .filter((name) => {
+      const entryTsx = path.join(srcDir, name, "index.tsx");
+      const entryJsx = path.join(srcDir, name, "index.jsx");
+      return (
+        fs.statSync(path.join(srcDir, name)).isDirectory() &&
+        (fs.existsSync(entryTsx) || fs.existsSync(entryJsx))
+      );
+    })
+    .sort();
 }
 
 const widgets = getWidgetTargets();

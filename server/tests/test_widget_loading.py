@@ -117,7 +117,7 @@ class TestWidgetConfiguration:
             template_uri="ui://widget/test.html",
             invoking="Loading...",
             invoked="Ready",
-            html="<html></html>",
+            component_name="test",
         )
 
         with pytest.raises(Exception):  # FrozenInstanceError
@@ -134,7 +134,7 @@ class TestWidgetConfiguration:
             template_uri="ui://widget/my.html",
             invoking="Loading widget...",
             invoked="Widget ready",
-            html="<html><body>Widget</body></html>",
+            component_name="my-widget",
         )
 
         assert widget.identifier == "my_widget"
@@ -143,7 +143,7 @@ class TestWidgetConfiguration:
         assert widget.template_uri == "ui://widget/my.html"
         assert widget.invoking == "Loading widget..."
         assert widget.invoked == "Widget ready"
-        assert widget.html == "<html><body>Widget</body></html>"
+        assert widget.component_name == "my-widget"
 
 
 class TestAssetsDirectory:

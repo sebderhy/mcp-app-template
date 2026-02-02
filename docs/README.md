@@ -55,20 +55,7 @@ createRoot(document.getElementById("my-widget-root")!).render(<MyWidget />);
 
 See [widget-development.md](./widget-development.md) for detailed patterns.
 
-### Step 2: Register in Build System
-
-Edit `build-all.mts:18`:
-
-```typescript
-const targets = [
-  "boilerplate",
-  "carousel",
-  // ... existing widgets
-  "my-widget",  // Add here
-];
-```
-
-### Step 3: Add Server Handler
+### Step 2: Add Server Handler
 
 Edit `server/main.py`:
 
@@ -141,7 +128,7 @@ elif tool_name == "show_my_widget":
 
 See [mcp-development-guidelines.md](./mcp-development-guidelines.md) for tool design best practices.
 
-### Step 4: Build and Test
+### Step 3: Build and Test
 
 ```bash
 pnpm run build
@@ -192,11 +179,6 @@ After building your widgets, clean up the template examples so only your app cod
 - [ ] `solar-system/`
 - [ ] `todo/`
 - [ ] `shop/`
-- [ ] `travel-map/`
-
-**Build targets** (`build-all.mts:18`):
-- [ ] Remove example widget names from the `targets` array (keep only your widgets)
-
 **Server code** (`server/main.py`):
 - [ ] Remove example `*Input` classes (BoilerplateInput, CarouselInput, etc.)
 - [ ] Remove example Widget definitions from `create_widgets()`
@@ -227,9 +209,8 @@ All tests should still pass with only your widgets remaining.
 
 ### Widget not rendering
 1. Check `pnpm run build` completed successfully
-2. Restart server after build (`pnpm run server`)
-3. Check browser console for errors
-4. Verify widget is in `build-all.mts` targets
+2. Check browser console for errors
+3. Verify widget has `src/<name>/index.tsx`
 
 ### Tool not appearing
 1. Check widget is in `WIDGETS` list in `server/main.py`

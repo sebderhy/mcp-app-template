@@ -24,7 +24,7 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 | `src/{widget}/index.tsx` | Widget entry point |
 | `src/*.ts` | Shared hooks (useWidgetProps, useTheme, useHostGlobal) |
 | `server/main.py` | MCP server - tools and handlers |
-| `build-all.mts:18` | Widget targets (add new widgets here) |
+| `build-all.mts` | Build script (auto-discovers `src/*/index.tsx`) |
 | `tests/*.test.ts` | UI unit tests (Vitest) |
 | `tests/browser/*.spec.ts` | Browser compliance tests (Playwright) |
 | `server/tests/test_*.py` | Server tests and grading (pytest) |
@@ -32,7 +32,6 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 ## Critical Rules
 
 - **Build before server:** `pnpm run build` must complete before `pnpm run server`
-- **Restart after rebuild:** Server caches HTML; restart after rebuilding
 - **Input models:** All Pydantic `*Input` models MUST have `extra='forbid'` and defaults
 - **Theme support:** Widgets MUST work in both light and dark modes
 - **Test after changes:** ALWAYS run `pnpm run test` after any code change
@@ -54,23 +53,21 @@ Read these before building:
 ## Adding a Widget
 
 1. Create `src/my-widget/index.tsx` with React component
-2. Add `"my-widget"` to `build-all.mts:18`
-3. Add Input model, Widget config, and handler in `server/main.py`
-4. Run `pnpm run build && pnpm run test && pnpm run ui-test --widget my-widget`
+2. Add Input model, Widget config, and handler in `server/main.py`
+3. Run `pnpm run build && pnpm run test && pnpm run ui-test --widget my-widget`
 
 ## ⚠️ DO NOT Modify Infrastructure
 
 **Never modify or delete:** `src/apptester/`, `src/use-*.ts` hooks, `tests/browser/apptester-e2e.spec.ts`
 
-These are the testing framework (not example widgets). Modifying them breaks the entire development workflow even if tests pass. Only modify: widget folders (`src/my-widget/`), `server/main.py` handlers, and `build-all.mts` targets array.
+These are the testing framework (not example widgets). Modifying them breaks the entire development workflow even if tests pass. Only modify: widget folders (`src/my-widget/`) and `server/main.py` handlers.
 
 ## Finalizing Your App
 
 After building your widgets, remove the template examples:
 
-1. Delete example widget folders from `src/` (boilerplate, carousel, list, gallery, dashboard, solar-system, todo, shop, travel-map)
-2. Remove example entries from `build-all.mts:18` targets array
-3. Remove example Input models, Widget configs, and handlers from `server/main.py`
+1. Delete example widget folders from `src/` (boilerplate, carousel, list, gallery, dashboard, solar-system, todo, shop)
+2. Remove example Input models, Widget configs, and handlers from `server/main.py`
 4. Remove unused dependencies from `package.json` (e.g., `three`, `@react-three/*` if not using 3D)
 5. Run `pnpm install && pnpm run build && pnpm run test:all` to verify everything works
 

@@ -28,7 +28,7 @@ import * as path from "path";
 
 // Output directory for test artifacts
 const OUTPUT_DIR = "/tmp/ui-test";
-const SIMULATOR_URL = "http://localhost:8000/assets/simulator.html";
+const SIMULATOR_URL = "http://localhost:8000/assets/apptester.html";
 const SERVER_PORT = 8000;
 
 // Colors for console output

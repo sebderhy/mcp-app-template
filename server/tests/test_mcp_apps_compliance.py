@@ -306,23 +306,28 @@ class TestHtmlContentCompliance:
 
     def test_html_is_non_empty(self):
         """Widget HTML must be non-empty."""
+        from main import load_widget_html
         for widget in get_widgets():
-            assert widget.html and widget.html.strip(), (
+            html = load_widget_html(widget.component_name)
+            assert html and html.strip(), (
                 f"Widget '{widget.identifier}' has empty HTML. Run 'pnpm run build'."
             )
 
     def test_html_has_doctype(self):
         """Widget HTML should have DOCTYPE declaration."""
+        from main import load_widget_html
         for widget in get_widgets():
-            html_lower = widget.html.lower().strip()
+            html_lower = load_widget_html(widget.component_name).lower().strip()
             assert html_lower.startswith("<!doctype html"), (
                 f"Widget '{widget.identifier}' HTML should start with <!DOCTYPE html>"
             )
 
     def test_html_has_script_tag(self):
         """Widget HTML must include script tag for the widget code."""
+        from main import load_widget_html
         for widget in get_widgets():
-            assert "<script" in widget.html.lower(), (
+            html = load_widget_html(widget.component_name)
+            assert "<script" in html.lower(), (
                 f"Widget '{widget.identifier}' HTML missing script tag"
             )
 

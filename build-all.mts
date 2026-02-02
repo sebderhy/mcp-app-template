@@ -14,23 +14,6 @@ const PER_ENTRY_CSS_GLOB = "**/*.{css,pcss,scss,sass}";
 const PER_ENTRY_CSS_IGNORE = "**/*.module.*".split(",").map((s) => s.trim());
 const GLOBAL_CSS_LIST = [path.resolve("src/index.css")];
 
-// Add your widget names here as you create them
-const targets: string[] = [
-  "boilerplate",
-  "carousel",
-  "list",
-  "gallery",
-  "dashboard",
-  "solar-system",
-  "todo",
-  "shop",
-  "qr",
-  "system-monitor",
-  "scenario-modeler",
-  "map",
-  "apptester",
-  "sandbox-proxy",
-];
 const builtNames: string[] = [];
 
 function wrapEntryPlugin(
@@ -69,9 +52,6 @@ fs.rmSync(outDir, { recursive: true, force: true });
 
 for (const file of entries) {
   const name = path.basename(path.dirname(file));
-  if (targets.length && !targets.includes(name)) {
-    continue;
-  }
 
   const entryAbs = path.resolve(file);
   const entryDir = path.dirname(entryAbs);

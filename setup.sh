@@ -143,7 +143,7 @@ echo ""
 if [ "$MODE" = "minimal" ]; then
     echo "Next steps:"
     echo "  • Start the server:    pnpm run server"
-    echo "  • Open the simulator:  http://localhost:8000/assets/simulator.html"
+    echo "  • Open the app tester: http://localhost:8000/assets/apptester.html"
     echo ""
     echo "To enable testing later, run:"
     echo "  • pnpm run setup:test           # Install Playwright browsers"
@@ -152,7 +152,7 @@ if [ "$MODE" = "minimal" ]; then
 else
     echo "Next steps:"
     echo "  • Start the server:    pnpm run server"
-    echo "  • Open the simulator:  http://localhost:8000/assets/simulator.html"
+    echo "  • Open the app tester: http://localhost:8000/assets/apptester.html"
     echo "  • Test a widget:       pnpm run ui-test --widget <name>"
 fi
 echo ""

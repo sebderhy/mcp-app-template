@@ -84,10 +84,10 @@ class AgentResponse:
 def get_widget_html(tool_name: str) -> str:
     """Get the HTML for a widget by tool name."""
     try:
-        from main import WIDGETS_BY_ID
+        from main import WIDGETS_BY_ID, load_widget_html
         widget = WIDGETS_BY_ID.get(tool_name)
         if widget:
-            return widget.html
+            return load_widget_html(widget.component_name)
     except ImportError:
         pass
     return ""
