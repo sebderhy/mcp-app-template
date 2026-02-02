@@ -34,7 +34,7 @@ class TestLoadWidgetHtml:
         # Clear the LRU cache to ensure fresh state
         load_widget_html.cache_clear()
 
-        with patch("main.ASSETS_DIR", tmp_path):
+        with patch("widgets._base.ASSETS_DIR", tmp_path):
             result = load_widget_html("test-widget")
             assert result == html_content
 
@@ -48,7 +48,7 @@ class TestLoadWidgetHtml:
         from main import load_widget_html
         load_widget_html.cache_clear()
 
-        with patch("main.ASSETS_DIR", tmp_path):
+        with patch("widgets._base.ASSETS_DIR", tmp_path):
             result = load_widget_html("test-widget")
             assert result == html_content
 
@@ -64,7 +64,7 @@ class TestLoadWidgetHtml:
         from main import load_widget_html
         load_widget_html.cache_clear()
 
-        with patch("main.ASSETS_DIR", tmp_path):
+        with patch("widgets._base.ASSETS_DIR", tmp_path):
             result = load_widget_html("widget")
             # Should use the last one when sorted (zzz999)
             assert result == new_content
@@ -74,7 +74,7 @@ class TestLoadWidgetHtml:
         from main import load_widget_html
         load_widget_html.cache_clear()
 
-        with patch("main.ASSETS_DIR", tmp_path):
+        with patch("widgets._base.ASSETS_DIR", tmp_path):
             with pytest.raises(FileNotFoundError) as exc_info:
                 load_widget_html("nonexistent-widget")
 
@@ -90,7 +90,7 @@ class TestLoadWidgetHtml:
         from main import load_widget_html
         load_widget_html.cache_clear()
 
-        with patch("main.ASSETS_DIR", tmp_path):
+        with patch("widgets._base.ASSETS_DIR", tmp_path):
             # First call
             result1 = load_widget_html("cached-widget")
             assert result1 == html_content
