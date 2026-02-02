@@ -946,7 +946,7 @@ After calling a tool, provide a brief helpful response about what you're showing
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              placeholder="Message ChatGPT..."
+              placeholder="Message the App Tester..."
               disabled={loading}
               className={`flex-1 bg-transparent outline-none ${
                 isDark ? "text-white placeholder-gray-500" : "text-gray-900 placeholder-gray-400"
