@@ -2,7 +2,18 @@
 
 **The AI-agent-first MCP App template.** Built so coding agents (Claude Code, Codex, Cursor, ...) can modify, test, and go as far as possible autonomously - without human in the loop.
 
-Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, and more.
+Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, and many more to come.
+
+## What are MCP Apps?
+
+![MCP Apps - Build once, run on ChatGPT, Claude, Gemini & more](./images/infographic_mcp_apps.png)
+*credit: image generated using [Nano Banana](https://ai.google.dev/gemini-api/docs/image-generation) through [Ormind](https://ormind.ai)*
+
+[MCP Apps](https://modelcontextprotocol.io/docs/extensions/apps) are an extension to the [Model Context Protocol](https://modelcontextprotocol.io/) that let MCP servers return **interactive UIs** -- React widgets rendered directly inside AI hosts like ChatGPT, Claude, VS Code, and so on... Instead of tools returning plain text, they return rich, interactive experiences displayed in sandboxed iframes within the conversation.
+
+This is a **platform shift**. AI chatbots are becoming app platforms -- ChatGPT alone has [800M+ weekly users](https://openai.com/index/introducing-apps-in-chatgpt/), and apps now run inside that distribution channel. One MCP server works across every host. 
+
+For more context, see the [MCP Apps blog post](http://blog.modelcontextprotocol.io/posts/2025-11-21-mcp-apps/) and the [protocol specification (SEP-1865)](https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx).
 
 ## Why This Template?
 
