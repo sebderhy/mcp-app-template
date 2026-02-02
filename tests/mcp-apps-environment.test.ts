@@ -56,7 +56,7 @@ const HOOK_FILES = [
 ];
 
 // Infrastructure that simulates OpenAI environment (skip checks)
-const INFRASTRUCTURE_DIRS = ["apptester"];
+const INFRASTRUCTURE_DIRS: string[] = [];
 
 // Example widgets that ship with template (warn but don't fail)
 const EXAMPLE_WIDGETS = [

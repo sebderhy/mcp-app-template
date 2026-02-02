@@ -7,7 +7,7 @@ import crypto from "crypto";
 import pkg from "./package.json" with { type: "json" };
 import tailwindcss from "@tailwindcss/vite";
 
-const entries = fg.sync("src/**/index.{tsx,jsx}");
+const entries = fg.sync(["src/**/index.{tsx,jsx}", "internal/**/index.{tsx,jsx}"]);
 const outDir = "assets";
 
 const PER_ENTRY_CSS_GLOB = "**/*.{css,pcss,scss,sass}";

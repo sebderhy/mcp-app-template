@@ -23,8 +23,10 @@ pnpm run ui-test --widget <name>  # Visual test a widget
 |------|---------|
 | `src/{widget}/index.tsx` | Widget entry point |
 | `src/*.ts` | Shared hooks (useWidgetProps, useTheme, useHostGlobal) |
+| `internal/apptester/` | App tester UI (infrastructure - do not modify) |
+| `internal/sandbox-proxy/` | Sandbox proxy (infrastructure - do not modify) |
 | `server/main.py` | MCP server - tools and handlers |
-| `build-all.mts` | Build script (auto-discovers `src/*/index.tsx`) |
+| `build-all.mts` | Build script (auto-discovers `src/*/index.tsx` and `internal/*/index.tsx`) |
 | `tests/*.test.ts` | UI unit tests (Vitest) |
 | `tests/browser/*.spec.ts` | Browser compliance tests (Playwright) |
 | `server/tests/test_*.py` | Server tests and grading (pytest) |
@@ -58,7 +60,7 @@ Read these before building:
 
 ## ⚠️ DO NOT Modify Infrastructure
 
-**Never modify or delete:** `src/apptester/`, `src/use-*.ts` hooks, `tests/browser/apptester-e2e.spec.ts`
+**Never modify or delete:** `internal/apptester/`, `internal/sandbox-proxy/`, `src/use-*.ts` hooks, `tests/browser/apptester-e2e.spec.ts`
 
 These are the testing framework (not example widgets). Modifying them breaks the entire development workflow even if tests pass. Only modify: widget folders (`src/my-widget/`) and `server/main.py` handlers.
 

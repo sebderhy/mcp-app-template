@@ -82,7 +82,7 @@ class TestLoadWidgetHtml:
             assert "pnpm run build" in str(exc_info.value)
 
     def test_caching_works(self, tmp_path):
-        """load_widget_html caches results."""
+        """load_widget_html caches by mtime and invalidates on change."""
         html_content = "<html>Cached</html>"
         html_file = tmp_path / "cached-widget.html"
         html_file.write_text(html_content)
@@ -93,14 +93,20 @@ class TestLoadWidgetHtml:
         with patch("main.ASSETS_DIR", tmp_path):
             # First call
             result1 = load_widget_html("cached-widget")
+            assert result1 == html_content
 
-            # Modify the file
-            html_file.write_text("<html>Modified</html>")
-
-            # Second call should return cached value
+            # Second call with same mtime returns cached value
             result2 = load_widget_html("cached-widget")
+            assert result2 == html_content
 
-            assert result1 == result2 == html_content
+            # Modify the file and bump mtime so cache invalidates
+            import os, time
+            html_file.write_text("<html>Modified</html>")
+            new_mtime = html_file.stat().st_mtime + 1
+            os.utime(html_file, (new_mtime, new_mtime))
+
+            result3 = load_widget_html("cached-widget")
+            assert result3 == "<html>Modified</html>"
 
 
 class TestWidgetConfiguration:
