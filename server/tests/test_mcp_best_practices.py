@@ -626,26 +626,28 @@ class TestServerInstructions:
         assert passed, "Server should have instructions defined"
 
     def test_instructions_have_tool_selection_guide(self):
-        """Server instructions should explain when to use which tool."""
-        from main import SERVER_INSTRUCTIONS
+        """Each widget description should include 'Use this tool when:' section."""
+        from main import WIDGETS
 
-        keywords = ['use', 'when', 'tool', 'selection', 'choose', 'best for']
-        instructions_lower = SERVER_INSTRUCTIONS.lower()
+        missing = []
+        for widget in WIDGETS:
+            if "use this tool when:" not in widget.description.lower():
+                missing.append(widget.identifier)
 
-        has_guide = sum(1 for kw in keywords if kw in instructions_lower) >= 3
-        score = 1.0 if has_guide else 0.0
+        score = 1.0 - (len(missing) / len(WIDGETS)) if WIDGETS else 1.0
+        passed = len(missing) == 0
 
         _report.add_result(GradeResult(
             category="Server Instructions",
             check_name="Tool selection guide",
-            passed=has_guide,
+            passed=passed,
             score=score,
-            details="" if has_guide else "Instructions should explain when to use each tool",
+            details=f"Missing 'Use this tool when:' in: {', '.join(missing)}" if missing else "",
             weight=1.2,
-            fix_hint="Add '### Tool Selection Guide' section explaining when to use each tool",
+            fix_hint="Add 'Use this tool when:' section to each widget's description",
         ))
 
-        assert has_guide, "Instructions should include tool selection guide"
+        assert passed, f"Widget descriptions missing 'Use this tool when:': {', '.join(missing)}"
 
     def test_instructions_mention_all_tools(self):
         """Server instructions should mention each available tool."""

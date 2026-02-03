@@ -12,8 +12,9 @@
 # This script:
 #   1. Removes example widget directories from src/ and server/widgets/
 #   2. Cleans unused dependencies from package.json
-#   3. Sets APP_NAME in .env (if --name provided)
-#   4. Runs build and tests to verify everything works
+#   3. Creates a hello-world placeholder widget (if no widgets kept)
+#   4. Sets APP_NAME in .env (if --name provided)
+#   5. Runs build and tests to verify everything works
 #
 
 set -e
@@ -217,7 +218,156 @@ else
     echo "  No dependencies to remove"
 fi
 
-# Step 4: Set APP_NAME in .env if provided
+# Step 4: Create placeholder widget if no widgets kept
+if [[ ${#KEEP_WIDGETS[@]} -eq 0 ]]; then
+    echo "→ Creating hello-world placeholder widget..."
+
+    # Create frontend directory
+    mkdir -p src/hello-world
+
+    # Create index.tsx (entry point)
+    cat > src/hello-world/index.tsx << 'FRONTEND_INDEX'
+import { createRoot } from "react-dom/client";
+import App from "./App";
+
+createRoot(document.getElementById("hello-world-root")!).render(<App />);
+FRONTEND_INDEX
+    echo "  Created src/hello-world/index.tsx"
+
+    # Create App.tsx (React component)
+    cat > src/hello-world/App.tsx << 'FRONTEND_APP'
+import { useWidgetProps } from "../use-widget-props";
+import { useTheme } from "../use-theme";
+
+type ToolOutput = {
+  message: string;
+};
+
+const defaultProps: ToolOutput = {
+  message: "Hello World!",
+};
+
+export default function App() {
+  const props = useWidgetProps<ToolOutput>(defaultProps);
+  const theme = useTheme();
+
+  return (
+    <div
+      style={{
+        padding: 24,
+        textAlign: "center",
+        fontFamily: "system-ui, sans-serif",
+        color: theme === "dark" ? "#e5e5e5" : "#1a1a1a",
+        backgroundColor: theme === "dark" ? "#1a1a1a" : "#ffffff",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <h1 style={{ margin: 0, fontSize: "2rem" }}>{props.message}</h1>
+      <p style={{ marginTop: 16, opacity: 0.7 }}>
+        Edit src/hello-world/App.tsx to customize this widget
+      </p>
+    </div>
+  );
+}
+FRONTEND_APP
+    echo "  Created src/hello-world/App.tsx"
+
+    # Create server widget module
+    cat > server/widgets/hello_world.py << 'SERVER_WIDGET'
+"""Hello world placeholder widget.
+
+This is a minimal widget created by create_new_app.sh to provide a starting point.
+Customize or replace it with your own widget implementation.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict
+
+import mcp.types as types
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from ._base import Widget, format_validation_error, get_invocation_meta
+
+
+WIDGET = Widget(
+    identifier="show_hello_world",
+    title="Hello World",
+    description="""Display a customizable hello world message.
+
+Use this tool when:
+- Testing your MCP App setup
+- Showing a simple greeting or status message
+- Starting development with a minimal example
+
+Args:
+    message: The message to display (default: "Hello World!")
+
+Returns:
+    A widget displaying the message.
+
+Example:
+    show_hello_world(message="Welcome to my app!")
+""",
+    template_uri="ui://widget/hello-world.html",
+    invoking="Loading message...",
+    invoked="Message displayed",
+    component_name="hello-world",
+)
+
+
+class HelloWorldInput(BaseModel):
+    """Input for hello world widget."""
+
+    message: str = Field(
+        default="Hello World!",
+        description="The message to display in the widget",
+    )
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+
+INPUT_MODEL = HelloWorldInput
+
+
+async def handle(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
+    """Handle the hello world tool call."""
+    try:
+        payload = HelloWorldInput.model_validate(arguments)
+    except ValidationError as e:
+        error_msg = format_validation_error(e, HelloWorldInput)
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[types.TextContent(type="text", text=error_msg)],
+                isError=True,
+            )
+        )
+
+    structured_content = {
+        "message": payload.message,
+    }
+
+    return types.ServerResult(
+        types.CallToolResult(
+            content=[
+                types.TextContent(
+                    type="text",
+                    text=f"Displaying message: {payload.message}",
+                )
+            ],
+            structuredContent=structured_content,
+            _meta=get_invocation_meta(widget),
+        )
+    )
+SERVER_WIDGET
+    echo "  Created server/widgets/hello_world.py"
+fi
+
+# Step 5: Set APP_NAME in .env if provided
 if [[ -n "$APP_NAME" ]]; then
     echo "→ Setting APP_NAME=$APP_NAME in .env..."
     if [[ -f ".env" ]]; then
@@ -228,11 +378,11 @@ if [[ -n "$APP_NAME" ]]; then
     echo "APP_NAME=$APP_NAME" >> .env
 fi
 
-# Step 5: Update lockfile
+# Step 6: Update lockfile
 echo "→ Updating lockfile..."
 pnpm install --silent
 
-# Step 6: Build and test
+# Step 7: Build and test
 echo "→ Building widgets..."
 pnpm run build
 
@@ -247,7 +397,7 @@ echo ""
 if [[ ${#KEEP_WIDGETS[@]} -gt 0 ]]; then
     echo "Kept widgets: ${KEEP_WIDGETS[*]}"
 else
-    echo "All example widgets removed."
+    echo "Created: hello-world (placeholder widget)"
 fi
 echo "Removed: ${WIDGETS_TO_DELETE[*]}"
 if [[ -n "$APP_NAME" ]]; then
@@ -255,8 +405,16 @@ if [[ -n "$APP_NAME" ]]; then
 fi
 echo ""
 echo "Next steps:"
-echo "  1. Create your widget in src/my-widget/index.tsx"
-echo "  2. Add the handler in server/widgets/my_widget.py"
-echo "  3. Run: pnpm run build && pnpm run test"
-echo "  4. Test: pnpm run server → http://localhost:8000/assets/apptester.html"
+if [[ ${#KEEP_WIDGETS[@]} -eq 0 ]]; then
+    echo "  1. Edit src/hello-world/App.tsx to customize the placeholder widget"
+    echo "  2. Edit server/widgets/hello_world.py to add your tool logic"
+    echo "     Or create a new widget: src/my-widget/ + server/widgets/my_widget.py"
+    echo "  3. Run: pnpm run build && pnpm run test"
+    echo "  4. Test: pnpm run server → http://localhost:8000/assets/apptester.html"
+else
+    echo "  1. Create your widget in src/my-widget/index.tsx"
+    echo "  2. Add the handler in server/widgets/my_widget.py"
+    echo "  3. Run: pnpm run build && pnpm run test"
+    echo "  4. Test: pnpm run server → http://localhost:8000/assets/apptester.html"
+fi
 echo ""
