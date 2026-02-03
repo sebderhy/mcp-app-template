@@ -19,8 +19,6 @@ Use this tool when:
 - Showing a place on a map
 - Exploring areas visually
 
-Use the geocode tool first to find coordinates for a place name.
-
 Args:
     west: Western longitude boundary (default: -0.5)
     south: Southern latitude boundary (default: 51.3)
@@ -45,12 +43,6 @@ class ShowMapInput(BaseModel):
     south: float = Field(default=51.3, description="Southern latitude (-90 to 90)")
     east: float = Field(default=0.3, description="Eastern longitude (-180 to 180)")
     north: float = Field(default=51.7, description="Northern latitude (-90 to 90)")
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-
-class GeocodeInput(BaseModel):
-    """Input for geocode tool (data-only, no widget)."""
-    query: str = Field(default="London", description="Place name or address to search for")
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
@@ -84,47 +76,3 @@ async def handle(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResul
     ))
 
 
-async def handle_geocode(arguments: Dict[str, Any]) -> types.ServerResult:
-    """Data-only handler: geocodes a location using OpenStreetMap Nominatim."""
-    import httpx
-
-    try:
-        payload = GeocodeInput.model_validate(arguments)
-    except ValidationError as e:
-        error_msg = format_validation_error(e, GeocodeInput)
-        return types.ServerResult(types.CallToolResult(
-            content=[types.TextContent(type="text", text=error_msg)],
-            isError=True,
-        ))
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://nominatim.openstreetmap.org/search",
-            params={"q": payload.query, "format": "json", "limit": "5"},
-            headers={"User-Agent": "MCP-App-Template/1.0"},
-        )
-        response.raise_for_status()
-        results = response.json()
-
-    if not results:
-        return types.ServerResult(types.CallToolResult(
-            content=[types.TextContent(type="text", text=f'No results found for "{payload.query}"')],
-        ))
-
-    formatted = []
-    for r in results:
-        bb = r.get("boundingbox", ["0", "0", "0", "0"])
-        formatted.append(
-            f"{r['display_name']}\n"
-            f"  Coordinates: {r['lat']}, {r['lon']}\n"
-            f"  Bounding box: W:{bb[2]}, S:{bb[0]}, E:{bb[3]}, N:{bb[1]}"
-        )
-
-    return types.ServerResult(types.CallToolResult(
-        content=[types.TextContent(type="text", text="\n\n".join(formatted))],
-    ))
-
-
-DATA_ONLY_TOOLS = {
-    "geocode": handle_geocode,
-}

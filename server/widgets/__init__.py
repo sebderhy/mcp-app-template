@@ -13,6 +13,7 @@ WIDGETS_BY_ID: Dict[str, Widget] = {}
 WIDGET_HANDLERS: Dict[str, Callable[..., Coroutine[Any, Any, Any]]] = {}
 WIDGET_INPUT_MODELS: Dict[str, type] = {}
 DATA_ONLY_HANDLERS: Dict[str, Callable[..., Coroutine[Any, Any, Any]]] = {}
+DATA_ONLY_TOOL_DEFS: List[Dict[str, Any]] = []
 
 for _, _name, _ in pkgutil.iter_modules(__path__):
     if _name.startswith("_"):
@@ -27,5 +28,7 @@ for _, _name, _ in pkgutil.iter_modules(__path__):
             WIDGET_INPUT_MODELS[_w.identifier] = _mod.INPUT_MODEL
     if hasattr(_mod, "DATA_ONLY_TOOLS"):
         DATA_ONLY_HANDLERS.update(_mod.DATA_ONLY_TOOLS)
+    if hasattr(_mod, "DATA_ONLY_TOOL_DEFS"):
+        DATA_ONLY_TOOL_DEFS.extend(_mod.DATA_ONLY_TOOL_DEFS)
 
 WIDGETS_BY_URI: Dict[str, Widget] = {w.template_uri: w for w in WIDGETS}

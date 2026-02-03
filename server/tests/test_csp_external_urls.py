@@ -94,18 +94,20 @@ def format_missing_urls_error(context: str, missing: List[str]) -> str:
 # =============================================================================
 
 def get_sample_data_urls() -> Set[str]:
-    """Extract URLs from sample data constants."""
-    from main import (
-        SAMPLE_CAROUSEL_ITEMS,
-        SAMPLE_LIST_ITEMS,
-        SAMPLE_GALLERY_IMAGES,
-        SAMPLE_CART_ITEMS,
-        SAMPLE_MAP_PLACES,
-    )
+    """Extract URLs from sample data constants (auto-discovered from widget modules)."""
+    import importlib
+    import pkgutil
+    import widgets as widgets_pkg
+
     urls = set()
-    for data in [SAMPLE_CAROUSEL_ITEMS, SAMPLE_LIST_ITEMS, SAMPLE_GALLERY_IMAGES,
-                 SAMPLE_CART_ITEMS, SAMPLE_MAP_PLACES]:
-        urls.update(extract_urls(json.dumps(data)))
+    for _, name, _ in pkgutil.iter_modules(widgets_pkg.__path__):
+        if name.startswith("_"):
+            continue
+        mod = importlib.import_module(f"widgets.{name}")
+        for attr_name in dir(mod):
+            if attr_name.startswith("SAMPLE_") or attr_name.startswith("SCENARIO_"):
+                data = getattr(mod, attr_name)
+                urls.update(extract_urls(json.dumps(data, default=str)))
     return urls
 
 

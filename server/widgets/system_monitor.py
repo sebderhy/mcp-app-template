@@ -101,3 +101,12 @@ async def handle_poll_system_stats(arguments: Dict[str, Any]) -> types.ServerRes
 DATA_ONLY_TOOLS = {
     "poll_system_stats": handle_poll_system_stats,
 }
+
+DATA_ONLY_TOOL_DEFS = [
+    {
+        "name": "poll_system_stats",
+        "title": "Poll System Stats",
+        "description": "Returns live CPU and memory stats. Called by the system monitor widget for polling — not intended for direct LLM use.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+]

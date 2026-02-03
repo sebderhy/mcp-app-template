@@ -1,23 +1,8 @@
 """
-MCP App Template - Python MCP Server
+MCP App Server — serves interactive widget tools via the MCP Apps protocol.
 
-This server provides multiple widget templates that work with any MCP Apps host
-(Claude, ChatGPT, VS Code, Goose, etc.):
-
-- Boilerplate: Basic interactive widget
-- Carousel: Horizontal scrolling cards
-- List: Vertical list with thumbnails
-- Gallery: Image grid with lightbox
-- Dashboard: Stats and metrics display
-- Solar System: Interactive 3D solar system
-- Todo: Multi-list todo manager
-- Shop: E-commerce cart with checkout
-- QR Code: Stateless QR code generator (from ext-apps)
-- Scenario Modeler: Interactive SaaS financial projections (from ext-apps)
-- System Monitor: Real-time CPU/memory polling (from ext-apps)
-- Map: Interactive 3D globe with geocoding (from ext-apps)
-
-Run with: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+Widgets are auto-discovered from the widgets/ package. Each widget module
+registers itself at import time. Run with: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 """
 
 from __future__ import annotations
@@ -49,7 +34,7 @@ if _env_path.exists():
 from widgets import (
     WIDGETS, WIDGETS_BY_ID, WIDGETS_BY_URI,
     WIDGET_HANDLERS, WIDGET_INPUT_MODELS,
-    DATA_ONLY_HANDLERS,
+    DATA_ONLY_HANDLERS, DATA_ONLY_TOOL_DEFS,
 )
 from widgets._base import (
     Widget, ASSETS_DIR, MIME_TYPE,
@@ -59,94 +44,42 @@ from widgets._base import (
     EXTERNAL_RESOURCE_DOMAINS, EXTERNAL_CONNECT_DOMAINS,
 )
 
-# Re-export sample data for backward compatibility with tests
-from widgets.carousel import SAMPLE_CAROUSEL_ITEMS
-from widgets.list import SAMPLE_LIST_ITEMS
-from widgets.gallery import SAMPLE_GALLERY_IMAGES
-from widgets.dashboard import SAMPLE_DASHBOARD_STATS, SAMPLE_ACTIVITIES
-from widgets.todo import SAMPLE_TODO_LISTS
-from widgets.shop import SAMPLE_CART_ITEMS
-from widgets.map import SAMPLE_MAP_PLACES
-from widgets.scenario_modeler import SCENARIO_TEMPLATES, SCENARIO_DEFAULT_INPUTS
-
-# Re-export input models for backward compatibility with tests
-from widgets.boilerplate import CardInput
-from widgets.carousel import CarouselInput
-from widgets.list import ListInput
-from widgets.gallery import GalleryInput
-from widgets.dashboard import DashboardInput
-from widgets.solar_system import SolarSystemInput
-from widgets.todo import TodoInput
-from widgets.shop import ShopInput
-from widgets.qr import QrInput
-from widgets.scenario_modeler import ScenarioModelerInput
-from widgets.system_monitor import SystemInfoInput
-from widgets.map import ShowMapInput, GeocodeInput
-
 
 # =============================================================================
 # MCP SERVER SETUP
 # =============================================================================
 
-SERVER_INSTRUCTIONS = """
-## MCP App Widget Server Usage Guide
+def _build_server_instructions() -> str:
+    """Generate server instructions from the auto-discovered widget registry."""
+    lines = [
+        "## MCP App Widget Server Usage Guide",
+        "",
+        "This MCP server provides interactive widget tools for MCP Apps hosts. "
+        "Each tool displays a specific type of visual content in the chat interface.",
+        "",
+        "### Available Tools",
+        "",
+    ]
+    for w in WIDGETS:
+        lines.append(f"- **{w.identifier}**: {w.description}")
+    for td in DATA_ONLY_TOOL_DEFS:
+        lines.append(f"- **{td['name']}**: {td['description']}")
+    lines.extend([
+        "",
+        "### Important Notes",
+        "",
+        "- All widgets support both light and dark themes automatically",
+        "- Widgets are responsive and work on mobile and desktop",
+        "- Each tool returns sample data by default - in production, connect to real data sources",
+        "- Use the `title` parameter to customize the widget header",
+    ])
+    return "\n".join(lines)
 
-This MCP server provides interactive widget tools for MCP Apps hosts. Each tool displays
-a specific type of visual content in the chat interface.
 
-### Tool Selection Guide
-
-Choose the right tool based on user intent:
-
-- **show_carousel**: Best for showcasing multiple items horizontally (restaurants,
-  products, places). Use when the user asks for recommendations or wants to browse options.
-
-- **show_list**: Best for ranked/ordered content (top 10 lists, search results,
-  task lists). Use when order matters or items need detailed metadata.
-
-- **show_gallery**: Best for image-focused content (photo albums, portfolios).
-  Use when visuals are the primary content.
-
-- **show_dashboard**: Best for metrics and analytics (KPIs, account overviews,
-  stats). Use when showing numerical data or status information.
-
-- **show_card**: Basic interactive widget. Use for simple single-item displays
-  or when other widgets don't fit.
-
-- **show_solar_system**: Educational 3D visualization. Use for astronomy topics
-  or interactive learning experiences.
-
-- **show_todo**: Task management interface. Use when the user wants to organize
-  tasks, create lists, or track progress.
-
-- **show_shop**: E-commerce cart interface. Use for shopping, checkout flows,
-  or product quantity management.
-
-- **show_qr**: Generate QR codes from text or URLs. Use for sharing links
-  or encoding information as scannable images.
-
-- **get_scenario_data**: SaaS financial projections. Use for modeling business
-  scenarios with interactive sliders and chart comparison.
-
-- **get_system_info**: Real-time system monitoring. Use for displaying CPU and
-  memory usage with live polling charts.
-
-- **show_map**: Interactive 3D globe. Use for geographic exploration. Pair with
-  the **geocode** tool to find coordinates from place names.
-
-- **geocode**: Search for places using OpenStreetMap (data-only, no widget).
-  Returns coordinates and bounding boxes to use with show_map.
-
-### Important Notes
-
-- All widgets support both light and dark themes automatically
-- Widgets are responsive and work on mobile and desktop
-- Each tool returns sample data by default - in production, connect to real data sources
-- Use the `title` parameter to customize the widget header
-"""
+SERVER_INSTRUCTIONS = _build_server_instructions()
 
 mcp = FastMCP(
-    name="boilerplate-server",
+    name=os.environ.get("APP_NAME", "mcp-app-server"),
     instructions=SERVER_INSTRUCTIONS,
     stateless_http=True,
     # Disable DNS rebinding protection when tunneling (e.g. cloudflared).
@@ -185,17 +118,18 @@ async def list_tools() -> List[types.Tool]:
 
     # Data-only tools: called by widgets via callTool, not intended for LLM use.
     # They must be registered so MCP hosts can route callTool invocations.
-    tools.append(types.Tool(
-        name="poll_system_stats",
-        title="Poll System Stats",
-        description="Returns live CPU and memory stats. Called by the system monitor widget for polling — not intended for direct LLM use.",
-        inputSchema={"type": "object", "properties": {}, "additionalProperties": False},
-        annotations={
-            "destructiveHint": False,
-            "openWorldHint": False,
-            "readOnlyHint": True,
-        },
-    ))
+    for tool_def in DATA_ONLY_TOOL_DEFS:
+        tools.append(types.Tool(
+            name=tool_def["name"],
+            title=tool_def["title"],
+            description=tool_def["description"],
+            inputSchema=tool_def["inputSchema"],
+            annotations={
+                "destructiveHint": False,
+                "openWorldHint": False,
+                "readOnlyHint": True,
+            },
+        ))
 
     return tools
 

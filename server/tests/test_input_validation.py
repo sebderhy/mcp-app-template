@@ -24,17 +24,9 @@ import main
 
 
 def get_all_input_models():
-    """Discover all Pydantic models ending with 'Input' from main.py."""
-    models = []
-    for name, obj in inspect.getmembers(main):
-        if (
-            inspect.isclass(obj)
-            and issubclass(obj, BaseModel)
-            and obj is not BaseModel
-            and name.endswith("Input")
-        ):
-            models.append((name, obj))
-    return models
+    """Discover all Pydantic input models from the widget registry."""
+    from main import WIDGET_INPUT_MODELS
+    return [(cls.__name__, cls) for cls in WIDGET_INPUT_MODELS.values()]
 
 
 # Get all input models for parametrized tests
