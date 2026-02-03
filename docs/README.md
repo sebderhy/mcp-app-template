@@ -1,6 +1,8 @@
 # MCP App Template - Docs Index
 
-A step-by-step walkthrough for building widgets with this template. Works with any MCP Apps host (Claude, ChatGPT, VS Code, Goose, etc.).
+A documentation index and quality checklist for building widgets with this template. Works with any MCP Apps host (Claude, ChatGPT, VS Code, Goose, etc.).
+
+For the step-by-step workflow, see the main [CLAUDE.md](../CLAUDE.md) (or `AGENTS.md`).
 
 ---
 
@@ -8,7 +10,7 @@ A step-by-step walkthrough for building widgets with this template. Works with a
 
 | Document | What it covers |
 |----------|----------------|
-| [widget-development.md](./widget-development.md) | Project-specific hooks (`useWidgetProps`, `useTheme`), patterns |
+| [widget-development.md](./widget-development.md) | Project-specific hooks (`useWidgetProps`, `useTheme`, `useWidgetState`), patterns |
 | [mcp-development-guidelines.md](./mcp-development-guidelines.md) | Tool naming, descriptions, error handling, security |
 | [what-makes-a-great-chatgpt-app.md](./what-makes-a-great-chatgpt-app.md) | Know/Do/Show framework, capability design (OpenAI guidance) |
 | [mcp-apps-docs.md](./mcp-apps-docs.md) | MCP Apps overview, getting started, examples |
@@ -17,125 +19,16 @@ A step-by-step walkthrough for building widgets with this template. Works with a
 
 ---
 
-## Adding a New Widget
+## Quick Start
 
-### Step 1: Create Widget Source
+See [CLAUDE.md](../CLAUDE.md) for the complete workflow:
 
-```bash
-mkdir -p src/my-widget
-```
-
-```tsx
-// src/my-widget/index.tsx
-import { createRoot } from "react-dom/client";
-import { useWidgetProps } from "../use-widget-props";
-import { useTheme } from "../use-theme";
-
-interface MyWidgetProps {
-  title: string;
-  // ... other fields
-}
-
-function MyWidget() {
-  const props = useWidgetProps<MyWidgetProps>();
-  const theme = useTheme();
-
-  if (!props) return <div className="p-4">Loading...</div>;
-
-  return (
-    <div className={`p-4 ${theme === "dark" ? "bg-gray-900 text-white" : "bg-white text-gray-900"}`}>
-      <h1 className="text-xl font-bold">{props.title}</h1>
-      {/* Your widget content */}
-    </div>
-  );
-}
-
-createRoot(document.getElementById("my-widget-root")!).render(<MyWidget />);
-```
-
-See [widget-development.md](./widget-development.md) for detailed patterns.
-
-### Step 2: Add Server Handler
-
-Edit `server/main.py`:
-
-```python
-# 1. Add Input model (near other Input classes)
-class MyWidgetInput(BaseModel):
-    """Input for my widget."""
-    title: str = Field(default="My Widget", description="Widget title")
-    # Add other fields with defaults
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-# 2. Add Widget definition in create_widgets()
-Widget(
-    identifier="show_my_widget",
-    title="Show My Widget",
-    description="""Brief description of what this widget does.
-
-Use this tool when:
-- User wants to X
-- User needs to Y
-
-Args:
-    title: Widget header text (default: "My Widget")
-
-Returns:
-    Interactive widget with:
-    - Feature A
-    - Feature B
-
-Example:
-    show_my_widget(title="Custom Title")""",
-    template_uri="ui://widget/my-widget.html",
-    invoking="Loading my widget...",
-    invoked="My widget ready",
-    html=load_widget_html("my-widget"),
-),
-
-# 3. Add to WIDGET_INPUT_MODELS dict
-WIDGET_INPUT_MODELS: Dict[str, type] = {
-    # ... existing entries
-    "show_my_widget": MyWidgetInput,
-}
-
-# 4. Add handler function
-async def handle_my_widget(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResult:
-    try:
-        payload = MyWidgetInput.model_validate(arguments)
-    except ValidationError as e:
-        error_msg = format_validation_error(e, MyWidgetInput)
-        return types.ServerResult(types.CallToolResult(
-            content=[types.TextContent(type="text", text=error_msg)],
-            isError=True,
-        ))
-
-    structured_content = {
-        "title": payload.title,
-        # ... other data
-    }
-
-    return types.ServerResult(types.CallToolResult(
-        content=[types.TextContent(type="text", text=f"My Widget: {payload.title}")],
-        structuredContent=structured_content,
-        _meta=get_invocation_meta(widget),
-    ))
-
-# 5. Add routing in handle_call_tool()
-elif tool_name == "show_my_widget":
-    return await handle_my_widget(widget, arguments)
-```
-
-See [mcp-development-guidelines.md](./mcp-development-guidelines.md) for tool design best practices.
-
-### Step 3: Build and Test
-
-```bash
-pnpm run build
-pnpm run test
-pnpm run ui-test --widget my-widget
-# Check /tmp/ui-test/screenshot.png to verify
-```
+1. `./setup.sh` — Setup and verify
+2. Read `README.md` and `docs/widget-development.md`
+3. Review the `carousel` example (`src/carousel/` + `server/widgets/carousel.py`)
+4. `./create_new_app.sh --name my_app` — Create your app
+5. Development loop: create widget → `pnpm run build && pnpm run test` → `pnpm run ui-test --widget name`
+6. `pnpm run test:browser` — Final verification
 
 ---
 
@@ -144,11 +37,14 @@ pnpm run ui-test --widget my-widget
 Before deploying to MCP Apps hosts, verify:
 
 ### MCP Server
-- [ ] Tool names use `verb_noun` format
+- [ ] Tool names use `verb_noun` format (e.g., `show_carousel`)
 - [ ] All tools have rich descriptions with Args, Returns, Example
 - [ ] Error messages suggest next steps
-- [ ] Server instructions explain tool selection
 - [ ] Input models have `extra='forbid'` and defaults
+- [ ] Check grade reports after `pnpm run test`:
+  - `server/tests/mcp_best_practices_report.txt`
+  - `server/tests/chatgpt_app_guidelines_report.txt`
+  - `server/tests/output_quality_report.txt`
 
 ### Widget UX
 - [ ] Supports both light and dark themes
@@ -159,16 +55,27 @@ Before deploying to MCP Apps hosts, verify:
 
 ### Testing
 - [ ] `pnpm run test` passes
-- [ ] `pnpm run ui-test` shows correct rendering
+- [ ] `pnpm run ui-test --widget <name>` shows correct rendering
+- [ ] `pnpm run test:browser` passes
 - [ ] Tested in app tester with real prompts
 
 ---
 
 ## Finalizing Your App
 
-After building your widgets, clean up the template examples so only your app code remains.
+After building your widgets, remove the template examples. The easiest way:
 
-### Files to Remove
+```bash
+./create_new_app.sh --name my_app --keep my-widget
+```
+
+This script automatically:
+- Removes example widget folders from `src/`
+- Removes example server modules from `server/widgets/`
+- Cleans unused dependencies from `package.json`
+- Runs build and tests to verify
+
+### Manual Cleanup (if needed)
 
 **Widget source folders** (`src/`):
 - [ ] `boilerplate/`
@@ -179,29 +86,28 @@ After building your widgets, clean up the template examples so only your app cod
 - [ ] `solar-system/`
 - [ ] `todo/`
 - [ ] `shop/`
-**Server code** (`server/main.py`):
-- [ ] Remove example `*Input` classes (BoilerplateInput, CarouselInput, etc.)
-- [ ] Remove example Widget definitions from `create_widgets()`
-- [ ] Remove example entries from `WIDGET_INPUT_MODELS` dict
-- [ ] Remove example `handle_*` functions
-- [ ] Remove example routing in `handle_call_tool()`
+- [ ] `qr/`
+- [ ] `scenario-modeler/`
+- [ ] `system-monitor/`
+- [ ] `map/`
+
+**Server widget modules** (`server/widgets/`):
+- [ ] Remove corresponding `*.py` files for deleted widgets
 
 **Dependencies** (`package.json`):
 - [ ] Remove `three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `@react-spring/three` if not using 3D
 - [ ] Remove `@types/three` from devDependencies if not using 3D
+- [ ] Remove `chart.js` if not using charts
+- [ ] Remove `framer-motion` if not using animations
 - [ ] Remove any other unused dependencies
 
 ### Final Verification
 
-After cleanup, run the full test suite to ensure nothing is broken:
-
 ```bash
 pnpm install           # Update lockfile after dependency changes
 pnpm run build         # Build your widgets
-pnpm run test:all      # Run all tests (server, UI, browser)
+pnpm run test:all      # All tests (server, UI, browser)
 ```
-
-All tests should still pass with only your widgets remaining.
 
 ---
 
@@ -209,15 +115,23 @@ All tests should still pass with only your widgets remaining.
 
 ### Widget not rendering
 1. Check `pnpm run build` completed successfully
-2. Check browser console for errors
-3. Verify widget has `src/<name>/index.tsx`
+2. Check browser console for errors (F12 → Console)
+3. Verify widget has `src/<name>/index.tsx` entry point
+4. Verify the element ID matches: `document.getElementById("<name>-root")`
 
-### Tool not appearing
-1. Check widget is in `WIDGETS` list in `server/main.py`
-2. Verify tool handler is added to `handle_call_tool()`
-3. Check for Python syntax errors in server
+### Tool not appearing in MCP host
+1. Check server module exists: `server/widgets/<name>.py`
+2. Verify module exports `WIDGET`, `INPUT_MODEL`, and `handle()`
+3. Check for Python syntax errors: `pnpm run test:server`
+4. Restart the server after adding new widgets
 
 ### Tests failing
 1. Ensure `extra='forbid'` on all Input models
 2. Check all Input fields have defaults
-3. Verify widget HTML exists in `assets/`
+3. Verify widget HTML exists in `assets/` (run `pnpm run build`)
+4. Check `component_name` in Widget matches the folder name in `src/`
+
+### Visual test shows wrong content
+1. Run `pnpm run build` to rebuild widgets
+2. Check `/tmp/ui-test/console.log` for errors
+3. Verify `structuredContent` in handler matches widget's `useWidgetProps` type

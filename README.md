@@ -7,7 +7,7 @@ Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, a
 ## What are MCP Apps?
 
 ![MCP Apps - Build once, run on ChatGPT, Claude, Gemini & more](./images/infographic_mcp_apps.png)
-*credit: image generated using [Nano Banana](https://ai.google.dev/gemini-api/docs/image-generation) through [Ormind](https://ormind.ai)*
+*credit: image generated using [Nano Banana](https://ai.google.dev/gemini-api/docs/image-generation)*
 
 [MCP Apps](https://modelcontextprotocol.io/docs/extensions/apps) are an extension to the [Model Context Protocol](https://modelcontextprotocol.io/) that let MCP servers return **interactive UIs** -- React widgets rendered directly inside AI hosts like ChatGPT, Claude, VS Code, and so on... Instead of tools returning plain text, they return rich, interactive experiences displayed in sandboxed iframes within the conversation.
 
