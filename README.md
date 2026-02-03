@@ -72,6 +72,29 @@ Open the app tester: **http://localhost:8000/assets/apptester.html**
 
 That's it! The app tester uses [Puter.js](https://puter.com) for free AI - no API key required for manual testing.
 
+## Creating Your Own App
+
+The template includes 12 example widgets. To start fresh with only the widgets you need:
+
+```bash
+# Remove all example widgets (start from scratch)
+./create_new_app.sh
+
+# Keep specific widgets as starting points
+./create_new_app.sh --keep carousel
+./create_new_app.sh --keep carousel,todo
+
+# Set your app name
+./create_new_app.sh --keep boilerplate --name my-app
+```
+
+The script:
+- Deletes widget directories from `src/` and `server/widgets/`
+- Removes unused dependencies (three.js, framer-motion, chart.js, etc.)
+- Updates the lockfile and runs build + tests to verify
+
+After running, add your own widgets following the [Adding Your Own Widget](#adding-your-own-widget) section.
+
 ## Local App Tester
 
 The app tester lets you test widgets without deploying to a real MCP host. It works in two modes:
