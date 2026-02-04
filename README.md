@@ -20,7 +20,7 @@ For more context, see the [MCP Apps blog post](http://blog.modelcontextprotocol.
 Most templates assume a human developer. This one is designed for AI agents to work as much as possible autonomously:
 
 ### 1. Orthogonal Test Suite
-~220 shared tests verify infrastructure (MCP Apps compliance, protocol format, accessibility, browser rendering) — not your business logic. Another ~18 tests per widget are auto-discovered (input validation, build output, browser rendering) — you never write them, they appear automatically when you add a widget. Modify widgets, change data, add features — tests still pass. Automated grading generates reports with actionable `FIX:` hints to steer coding agents.
+~450 tests verify infrastructure (MCP Apps compliance, protocol format, accessibility) plus 12 browser tests that render widgets in real Chromium. Tests are auto-discovered per widget (input validation, build output, browser rendering) — you never write them, they appear automatically when you add a widget. Modify widgets, change data, add features — tests still pass. Automated grading generates reports with actionable `FIX:` hints to steer coding agents.
 
 ### 2. Hierarchical Documentation
 `AGENTS.md` for quick onboarding → `docs/README.md` for a step-by-step building guide → deep docs covering MCP best practices, widget patterns, and complete SDK reference (`llms-full.txt`).
@@ -212,6 +212,8 @@ User Prompt → MCP Host → MCP Tool Call → Python Server → Widget renders 
 | `system-monitor` | Real-time CPU & memory monitoring (Chart.js) |
 | `scenario-modeler` | SaaS financial projections with interactive sliders |
 | `map` | Interactive 3D globe with geocoding (CesiumJS) |
+
+These widgets are adapted from the [OpenAI Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples/) and [MCP Apps Examples](https://github.com/modelcontextprotocol/ext-apps/tree/main/examples).
 
 Try them: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
 
@@ -418,9 +420,9 @@ Deploy the Python server to any platform (Fly.io, Render, Railway, Cloud Run, et
 
 ## Acknowledgments
 
-Based on [OpenAI's Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples) and the [MCP Apps Protocol](https://modelcontextprotocol.io/docs/extensions/apps).
+Based on [OpenAI's Apps SDK Examples](https://github.com/openai/openai-apps-sdk-examples/) and the [MCP Apps Examples](https://github.com/modelcontextprotocol/ext-apps/tree/main/examples).
 
-The `qr`, `system-monitor`, `scenario-modeler`, and `map` widgets are ported from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps) (MIT License).
+The `qr`, `system-monitor`, `scenario-modeler`, and `map` widgets are ported from [modelcontextprotocol/ext-apps](https://github.com/modelcontextprotocol/ext-apps/tree/main/examples) (MIT License).
 
 ## License
 
