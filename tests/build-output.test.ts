@@ -208,3 +208,34 @@ describe.skipIf(!buildExists)("Build Consistency", () => {
     }
   });
 });
+
+describe.skipIf(!buildExists)("Bundle Size Budgets", () => {
+  const DEFAULT_LIMITS = {
+    js: 500 * 1024,   // 500KB max JS
+    css: 200 * 1024,  // 200KB max CSS
+  };
+
+  // Widgets with legitimate large dependencies (e.g., Three.js) can have higher limits
+  const WIDGET_JS_LIMITS: Record<string, number> = {
+    "solar-system": 1500 * 1024,  // Three.js for 3D rendering
+  };
+
+  it.each(widgets)("widget '%s' JS bundle within size budget", (widget) => {
+    const files = fs.readdirSync(assetsDir);
+    const jsFile = files.find(f => f.startsWith(`${widget}-`) && f.endsWith('.js'));
+    if (jsFile) {
+      const stats = fs.statSync(path.join(assetsDir, jsFile));
+      const limit = WIDGET_JS_LIMITS[widget] ?? DEFAULT_LIMITS.js;
+      expect(stats.size).toBeLessThan(limit);
+    }
+  });
+
+  it.each(widgets)("widget '%s' CSS bundle under 200KB", (widget) => {
+    const files = fs.readdirSync(assetsDir);
+    const cssFile = files.find(f => f.startsWith(`${widget}-`) && f.endsWith('.css'));
+    if (cssFile) {
+      const stats = fs.statSync(path.join(assetsDir, cssFile));
+      expect(stats.size).toBeLessThan(DEFAULT_LIMITS.css);
+    }
+  });
+});

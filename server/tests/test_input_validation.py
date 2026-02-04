@@ -140,3 +140,45 @@ class TestInputModelConsistency:
         # Allow for some flexibility, but they should be in the same ballpark
         assert input_count >= 1, "Should have at least one input model"
         # Don't enforce exact match - just verify the pattern exists
+
+
+EDGE_CASE_STRINGS = [
+    ("empty_string", ""),
+    ("unicode_emoji", "こんにちは 🎉"),
+    ("html_tags", "<script>alert('xss')</script>"),
+    ("sql_like", "'; DROP TABLE users; --"),
+    ("long_string", "x" * 500),  # Long but not too long (some widgets have limits)
+    ("whitespace_only", "   \n\t  "),
+    ("null_bytes", "hello\x00world"),
+]
+
+
+class TestEdgeCaseHandling:
+    """Test that widgets handle unusual inputs without crashing."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("case_name,value", EDGE_CASE_STRINGS)
+    async def test_string_edge_cases_dont_crash(self, case_name, value):
+        """Widgets should handle edge case strings gracefully."""
+        from main import handle_call_tool, WIDGETS, WIDGET_INPUT_MODELS
+        import mcp.types as types
+
+        for widget in WIDGETS:
+            input_model = WIDGET_INPUT_MODELS.get(widget.identifier)
+            if not input_model:
+                continue
+
+            # Find first string field and test with edge case value
+            for field_name, field_info in input_model.model_fields.items():
+                if field_info.annotation == str:
+                    request = types.CallToolRequest(
+                        method="tools/call",
+                        params=types.CallToolRequestParams(
+                            name=widget.identifier,
+                            arguments={field_name: value},
+                        ),
+                    )
+                    # Should return a result, not raise an exception
+                    result = await handle_call_tool(request)
+                    assert result is not None, f"{widget.identifier} crashed on {case_name}"
+                    break
