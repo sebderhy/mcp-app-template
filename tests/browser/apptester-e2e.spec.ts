@@ -17,72 +17,10 @@
  * If this test fails, the entire local testing workflow is broken.
  */
 
-import { test, expect, chromium, Browser } from "@playwright/test";
-import { spawn, ChildProcess } from "child_process";
-import { setTimeout as delay } from "timers/promises";
+import { test, expect, chromium } from "@playwright/test";
 
 const SERVER_URL = "http://localhost:8000";
 
-let serverProcess: ChildProcess | null = null;
-
-/**
- * Check if server is already running
- */
-async function isServerRunning(): Promise<boolean> {
-  try {
-    const response = await fetch(`${SERVER_URL}/tools`, { signal: AbortSignal.timeout(1000) });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Start the MCP server for testing
- */
-async function startServer(): Promise<ChildProcess> {
-  return new Promise((resolve, reject) => {
-    const proc = spawn("pnpm", ["run", "server"], {
-      cwd: process.cwd(),
-      detached: true,
-      stdio: "pipe",
-    });
-
-    let started = false;
-    const timeout = globalThis.setTimeout(() => {
-      if (!started) {
-        reject(new Error("Server failed to start within 10 seconds"));
-      }
-    }, 10000);
-
-    proc.stdout?.on("data", (data) => {
-      const output = data.toString();
-      if (output.includes("Application startup complete") && !started) {
-        started = true;
-        globalThis.clearTimeout(timeout);
-        resolve(proc);
-      }
-    });
-
-    proc.stderr?.on("data", (data) => {
-      const output = data.toString();
-      if (output.includes("Application startup complete") && !started) {
-        started = true;
-        globalThis.clearTimeout(timeout);
-        resolve(proc);
-      }
-    });
-
-    proc.on("error", (err) => {
-      globalThis.clearTimeout(timeout);
-      reject(err);
-    });
-  });
-}
-
-/**
- * Check if we can launch a browser (Playwright installed)
- */
 async function canLaunchBrowser(): Promise<boolean> {
   try {
     const browser = await chromium.launch({ headless: true });
@@ -92,23 +30,6 @@ async function canLaunchBrowser(): Promise<boolean> {
     return false;
   }
 }
-
-// Setup and teardown
-test.beforeAll(async () => {
-  if (!(await canLaunchBrowser())) return;
-
-  if (!(await isServerRunning())) {
-    serverProcess = await startServer();
-    // Give server extra time to fully initialize
-    await delay(2000);
-  }
-});
-
-test.afterAll(async () => {
-  if (serverProcess) {
-    process.kill(-serverProcess.pid!, "SIGTERM");
-  }
-});
 
 /**
  * TEST: App Tester loads and displays widgets
@@ -204,9 +125,12 @@ test("apptester loads and renders widgets", async () => {
 
     expect(hasContent).toBeTruthy();
 
-    // 11. Fail on console errors (filters out noise like React DevTools)
+    // 11. Fail on console errors (filters out noise like React DevTools and expected 401s from Puter.js)
     const realErrors = consoleErrors.filter(
-      (e) => !e.includes("React DevTools") && !e.includes("Download the React DevTools")
+      (e) =>
+        !e.includes("React DevTools") &&
+        !e.includes("Download the React DevTools") &&
+        !e.includes("status of 401")
     );
     expect(realErrors, `Console errors:\n${realErrors.join("\n")}`).toHaveLength(0);
 

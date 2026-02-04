@@ -22,12 +22,10 @@
  */
 
 import { test, expect, chromium, type Page, type Browser } from "@playwright/test";
-import { spawn, type ChildProcess } from "child_process";
 
 const SERVER_PORT = 8000;
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 
-let serverProcess: ChildProcess | null = null;
 let browserAvailable: boolean | null = null;
 
 // ─── Per-page tracking ───────────────────────────────────────────────────────
@@ -70,30 +68,6 @@ async function canLaunchBrowser(): Promise<boolean> {
   return browserAvailable;
 }
 
-async function isServerRunning(): Promise<boolean> {
-  try {
-    const response = await fetch(`${SERVER_URL}/chat/status`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function startServer(): Promise<ChildProcess> {
-  const proc = spawn("pnpm", ["run", "server"], {
-    cwd: process.cwd(),
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: true,
-  });
-  const maxWait = 30000;
-  const startTime = Date.now();
-  while (Date.now() - startTime < maxWait) {
-    if (await isServerRunning()) return proc;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-  throw new Error("Server failed to start within 30 seconds");
-}
-
 /**
  * Get widget tools from the server.
  * The HTTP /tools endpoint returns only widget tools (tools with UI).
@@ -115,6 +89,8 @@ interface RenderResult {
   rejections: string[];
   toolCalls: string[];
   hasContent: boolean;
+  toolOutput: Record<string, unknown>;
+  textContent: string;
 }
 
 async function renderWidget(
@@ -222,6 +198,16 @@ iframe{width:100%;height:100%;border:0}</style>
     }
   });
 
+  // Capture rendered text content from the iframe
+  const textContent = await page.evaluate(() => {
+    const iframe = document.getElementById("widget-frame") as HTMLIFrameElement;
+    try {
+      return iframe.contentDocument?.body?.textContent || "";
+    } catch {
+      return "";
+    }
+  });
+
   // Remove listeners so they don't leak into the next render
   page.removeListener("console", onConsole);
   page.removeListener("pageerror", onPageError);
@@ -237,6 +223,8 @@ iframe{width:100%;height:100%;border:0}</style>
     rejections: [...getPageRejections(page)],
     toolCalls: [...getPageToolCalls(page)],
     hasContent,
+    toolOutput: toolData.tool_output || {},
+    textContent,
   };
 }
 
@@ -248,17 +236,10 @@ let darkResults: RenderResult[] = [];
 // ─── Setup / teardown ────────────────────────────────────────────────────────
 
 test.beforeAll(async ({ }, testInfo) => {
-  // Rendering all widgets in both themes can take longer than the default 60s
   testInfo.setTimeout(120_000);
 
   if (!(await canLaunchBrowser())) return;
 
-  if (!(await isServerRunning())) {
-    serverProcess = await startServer();
-  }
-
-  // Render every widget once in light mode and once in dark mode.
-  // All tests below assert on these cached results — no redundant renders.
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
@@ -274,12 +255,6 @@ test.beforeAll(async ({ }, testInfo) => {
     }
   } finally {
     await browser.close();
-  }
-});
-
-test.afterAll(async () => {
-  if (serverProcess) {
-    process.kill(-serverProcess.pid!, "SIGTERM");
   }
 });
 
@@ -367,5 +342,30 @@ test.describe("Widget Compliance", () => {
       failures,
       `Widgets calling tools that fail on the server:\n${failures.join("\n")}`
     ).toHaveLength(0);
+  });
+
+  test("widgets render their structured content values", async () => {
+    if (!(await canLaunchBrowser())) { test.skip(); return; }
+
+    const failures: string[] = [];
+
+    for (const result of lightResults) {
+      if (!result.toolOutput) continue;
+
+      // Check that string values from toolOutput appear in rendered text
+      for (const [key, value] of Object.entries(result.toolOutput)) {
+        if (typeof value === "string" && value.length >= 3 && value.length <= 100) {
+          if (!result.textContent.includes(value)) {
+            failures.push(`${result.tool}: "${key}" value "${value}" not found in rendered output`);
+          }
+        }
+      }
+    }
+
+    // Allow some failures (not all fields render visibly), but flag if many
+    const failureRate = failures.length / lightResults.length;
+    if (failureRate > 0.5) {
+      expect(failures, `Many widgets not rendering their data:\n${failures.slice(0, 5).join("\n")}`).toHaveLength(0);
+    }
   });
 });

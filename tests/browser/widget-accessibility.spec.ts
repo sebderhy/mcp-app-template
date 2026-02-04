@@ -21,17 +21,12 @@
  */
 
 import { test, expect, chromium, type Page, type Browser } from "@playwright/test";
-import { spawn, type ChildProcess } from "child_process";
 
 const SERVER_PORT = 8000;
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
 
-let serverProcess: ChildProcess | null = null;
 let browserAvailable: boolean | null = null;
 
-/**
- * Check if browser can be launched (cached)
- */
 async function canLaunchBrowser(): Promise<boolean> {
   if (browserAvailable !== null) return browserAvailable;
 
@@ -45,41 +40,6 @@ async function canLaunchBrowser(): Promise<boolean> {
     console.log("   Run: pnpm run setup:test && npx playwright install-deps\n");
   }
   return browserAvailable;
-}
-
-/**
- * Check if server is running
- */
-async function isServerRunning(): Promise<boolean> {
-  try {
-    const response = await fetch(`${SERVER_URL}/chat/status`);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Start the MCP server
- */
-async function startServer(): Promise<ChildProcess> {
-  const proc = spawn("pnpm", ["run", "server"], {
-    cwd: process.cwd(),
-    stdio: ["ignore", "pipe", "pipe"],
-    detached: true,
-  });
-
-  const maxWait = 30000;
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < maxWait) {
-    if (await isServerRunning()) {
-      return proc;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  }
-
-  throw new Error("Server failed to start within 30 seconds");
 }
 
 /**
@@ -158,21 +118,6 @@ async function setupWidgetPage(
 
   return page;
 }
-
-// Setup and teardown
-test.beforeAll(async () => {
-  if (!(await canLaunchBrowser())) return;
-
-  if (!(await isServerRunning())) {
-    serverProcess = await startServer();
-  }
-});
-
-test.afterAll(async () => {
-  if (serverProcess) {
-    process.kill(-serverProcess.pid!, "SIGTERM");
-  }
-});
 
 test.describe("Widget Accessibility", () => {
   /**
