@@ -38,8 +38,11 @@ Local app tester for manual testing - works instantly without API key via [Puter
 ### 5. Working Examples
 12 production-ready widgets demonstrating state management, theming, 3D visualization, drag-and-drop, real-time monitoring, and more.
 
-## Demo
+## Demos
+### Claude Code autonomously building an app **end-to-end** from the template
+https://github.com/user-attachments/assets/407393de-c9d8-4da3-b541-54b8b9a2d7dc
 
+### Showcase of widgets within ChatGPT
 https://github.com/user-attachments/assets/f5877544-0dce-4c31-979e-50b5533f9a16
 
 ## Quick Start
