@@ -683,27 +683,24 @@ class TestServerInstructions:
 class TestInputValidation:
     """Tests for MCP guideline 5.1: Input Validation."""
 
+    def _get_input_models(self) -> List[Tuple[str, type]]:
+        """Get all input models from the widget registry."""
+        from main import WIDGET_INPUT_MODELS
+        return [(cls.__name__, cls) for cls in WIDGET_INPUT_MODELS.values()]
+
     def test_all_input_models_forbid_extra(self):
         """All Pydantic input models should have extra='forbid'."""
-        import main
+        input_models = self._get_input_models()
 
         violations = []
-        models_checked = 0
+        models_checked = len(input_models)
 
-        for name in dir(main):
-            obj = getattr(main, name)
-            if (
-                inspect.isclass(obj)
-                and issubclass(obj, BaseModel)
-                and obj is not BaseModel
-                and name.endswith("Input")
-            ):
-                models_checked += 1
-                config = getattr(obj, "model_config", {})
-                if config.get("extra") != "forbid":
-                    violations.append(f"'{name}' - missing extra='forbid'")
+        for name, model in input_models:
+            config = getattr(model, "model_config", {})
+            if config.get("extra") != "forbid":
+                violations.append(f"'{name}' - missing extra='forbid'")
 
-        score = 1.0 - (len(violations) / models_checked) if models_checked > 0 else 0.0
+        score = 1.0 - (len(violations) / models_checked) if models_checked > 0 else 1.0
         _report.add_result(GradeResult(
             category="Input Validation",
             check_name="Extra fields forbidden",
@@ -718,27 +715,19 @@ class TestInputValidation:
 
     def test_all_fields_have_defaults(self):
         """Input model fields should have defaults (for optional invocation)."""
-        import main
+        input_models = self._get_input_models()
 
         violations = []
-        models_checked = 0
+        models_checked = len(input_models)
 
-        for name in dir(main):
-            obj = getattr(main, name)
-            if (
-                inspect.isclass(obj)
-                and issubclass(obj, BaseModel)
-                and obj is not BaseModel
-                and name.endswith("Input")
-            ):
-                models_checked += 1
-                # Try to instantiate with no args
-                try:
-                    instance = obj()
-                except Exception as e:
-                    violations.append(f"'{name}' - cannot instantiate with defaults: {e}")
+        for name, model in input_models:
+            # Try to instantiate with no args
+            try:
+                instance = model()
+            except Exception as e:
+                violations.append(f"'{name}' - cannot instantiate with defaults: {e}")
 
-        score = 1.0 - (len(violations) / models_checked) if models_checked > 0 else 0.0
+        score = 1.0 - (len(violations) / models_checked) if models_checked > 0 else 1.0
         _report.add_result(GradeResult(
             category="Input Validation",
             check_name="Fields have defaults",
@@ -753,29 +742,21 @@ class TestInputValidation:
 
     def test_fields_have_descriptions(self):
         """Input model fields should have descriptions."""
-        import main
-        from pydantic.fields import FieldInfo
+        input_models = self._get_input_models()
 
         violations = []
         total_fields = 0
         fields_with_desc = 0
 
-        for name in dir(main):
-            obj = getattr(main, name)
-            if (
-                inspect.isclass(obj)
-                and issubclass(obj, BaseModel)
-                and obj is not BaseModel
-                and name.endswith("Input")
-            ):
-                for field_name, field_info in obj.model_fields.items():
-                    total_fields += 1
-                    if field_info.description:
-                        fields_with_desc += 1
-                    else:
-                        violations.append(f"'{name}.{field_name}' - missing description")
+        for name, model in input_models:
+            for field_name, field_info in model.model_fields.items():
+                total_fields += 1
+                if field_info.description:
+                    fields_with_desc += 1
+                else:
+                    violations.append(f"'{name}.{field_name}' - missing description")
 
-        score = fields_with_desc / total_fields if total_fields > 0 else 0.0
+        score = fields_with_desc / total_fields if total_fields > 0 else 1.0
         _report.add_result(GradeResult(
             category="Input Validation",
             check_name="Field descriptions",

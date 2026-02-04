@@ -28,7 +28,7 @@ Most templates assume a human developer. This one is designed for AI agents to w
 ### 3. Automated Visual Testing
 AI agents can test widgets and capture screenshots - no API key required:
 ```bash
-pnpm run ui-test --widget carousel  # Renders widget, saves screenshot
+pnpm run ui-test --tool show_carousel  # Renders tool, saves screenshot
 ```
 Agents read `/tmp/ui-test/screenshot.png` to verify their changes work.
 
@@ -315,12 +315,12 @@ pnpm run setup:test   # Install Playwright browsers (~150MB)
 
 ### Two Testing Modes
 
-**1. Direct Mode (no API key)** - Test specific widgets directly:
+**1. Direct Mode (no API key)** - Test specific tools directly:
 ```bash
-pnpm run ui-test --widget carousel      # Calls show_carousel (adds show_ prefix)
-pnpm run ui-test --tool my_custom_tool  # Calls exact tool name (no prefix)
+pnpm run ui-test --tool show_carousel           # Test a tool
+pnpm run ui-test --tool show_carousel --theme dark  # Test in dark mode
 ```
-Use `--widget` for standard `show_*` tools, or `--tool` for tools with custom naming conventions. This is the recommended mode for AI coding agents.
+This is the recommended mode for AI coding agents.
 
 **2. AI-in-the-loop Mode (requires OpenAI API key)** - Full app tester with AI:
 ```bash
@@ -348,7 +348,7 @@ User: "Add a new stats card to the dashboard"
 Coding Agent (Claude Code, Codex, Cursor, etc.):
 1. Modifies src/dashboard/index.tsx
 2. Runs pnpm run build
-3. Runs pnpm run ui-test --widget dashboard
+3. Runs pnpm run ui-test --tool show_dashboard
 4. Reads /tmp/ui-test/screenshot.png
 5. Verifies the new card appears correctly
 ```

@@ -98,8 +98,32 @@ cd server
 if [ -d ".venv" ]; then
     echo "  Virtual environment already exists, skipping creation"
 else
-    python3 -m venv .venv
-    echo "  Created virtual environment"
+    # Try uv first (faster and doesn't require python3-venv package)
+    if command -v uv &> /dev/null; then
+        echo "  Using uv to create virtual environment"
+        uv venv .venv
+        echo "  Created virtual environment with uv"
+    else
+        # Fall back to python3 -m venv
+        if python3 -m venv .venv 2>/dev/null; then
+            echo "  Created virtual environment"
+        else
+            echo_error "Failed to create virtual environment."
+            echo ""
+            echo "This usually means python3-venv is not installed. Fix options:"
+            echo ""
+            echo "  Option 1 (recommended): Install uv (fast Python package manager)"
+            echo "    curl -LsSf https://astral.sh/uv/install.sh | sh"
+            echo ""
+            echo "  Option 2: Install python3-venv"
+            echo "    Ubuntu/Debian: sudo apt install python3-venv"
+            echo "    Fedora: sudo dnf install python3-venv"
+            echo "    macOS: brew install python3 (includes venv)"
+            echo ""
+            echo "After installing, run ./setup.sh again."
+            exit 1
+        fi
+    fi
 fi
 
 # Activate venv and install dependencies
@@ -153,6 +177,6 @@ else
     echo "Next steps:"
     echo "  • Start the server:    pnpm run server"
     echo "  • Open the app tester: http://localhost:8000/assets/apptester.html"
-    echo "  • Test a widget:       pnpm run ui-test --widget <name>"
+    echo "  • Test a widget:       pnpm run ui-test --tool show_<name>"
 fi
 echo ""

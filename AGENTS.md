@@ -14,8 +14,22 @@ Read in this order:
 - `README.md` — What MCP Apps are, why this template exists
 - `docs/widget-development.md` — Hook APIs and widget patterns
 
-### 3. Review One Example
-Examine the `carousel` widget to understand the pattern:
+### 3. Review Examples (By Complexity)
+
+Start with simpler examples and progress to advanced ones as needed:
+
+| Complexity | Widget | Description | Key Concepts |
+|------------|--------|-------------|--------------|
+| **Beginner** | `list` | Simple list display | Basic props, theme support |
+| **Beginner** | `qr` | QR code generator | Single input, canvas rendering |
+| **Intermediate** | `carousel` | Image slideshow | State management, navigation |
+| **Intermediate** | `gallery` | Image grid | Grid layout, responsive design |
+| **Intermediate** | `dashboard` | Stats cards | Multiple data types, layout |
+| **Advanced** | `scenario-modeler` | Interactive charts | Chart.js, complex data |
+| **Advanced** | `solar-system` | 3D visualization | Three.js, animation loops |
+| **Advanced** | `map` | Interactive maps | External APIs (Leaflet), geocoding |
+
+**Recommended starting point**: Examine the `carousel` widget:
 - **Frontend**: `src/carousel/index.tsx` (entry) + `src/carousel/App.tsx` (component)
 - **Server**: `server/widgets/carousel.py` — exports `WIDGET`, `INPUT_MODEL`, `handle()`
 
@@ -34,7 +48,7 @@ For each widget you build:
 # 3. Build and test:
 pnpm run build && pnpm run test
 # 4. Visual verification:
-pnpm run ui-test --widget my-widget
+pnpm run ui-test --tool show_my_widget
 # 5. Check screenshot: /tmp/ui-test/screenshot.png
 # 6. Iterate until tests pass and widget renders correctly
 ```
@@ -58,7 +72,8 @@ Your app is production-ready.
 | `pnpm run test:all` | All tests including browser |
 | `pnpm run test:browser` | Browser compliance tests only |
 | `pnpm run server` | Start MCP server at localhost:8000 |
-| `pnpm run ui-test --widget <name>` | Render widget, save screenshot to `/tmp/ui-test/` |
+| `pnpm run ui-test --tool <name>` | Render tool, save screenshot to `/tmp/ui-test/` |
+| `pnpm run ui-test --tool <name> --theme dark` | Test tool in dark mode |
 
 ---
 
@@ -192,7 +207,7 @@ async def handle(widget: Widget, arguments: Dict[str, Any]) -> types.ServerResul
     ))
 ```
 
-Then: `pnpm run build && pnpm run test && pnpm run ui-test --widget my-widget`
+Then: `pnpm run build && pnpm run test && pnpm run ui-test --tool show_my_widget`
 
 ---
 

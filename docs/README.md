@@ -27,7 +27,7 @@ See [CLAUDE.md](../CLAUDE.md) for the complete workflow:
 2. Read `README.md` and `docs/widget-development.md`
 3. Review the `carousel` example (`src/carousel/` + `server/widgets/carousel.py`)
 4. `./create_new_app.sh --name my_app` — Create your app
-5. Development loop: create widget → `pnpm run build && pnpm run test` → `pnpm run ui-test --widget name`
+5. Development loop: create widget → `pnpm run build && pnpm run test` → `pnpm run ui-test --tool show_name`
 6. `pnpm run test:browser` — Final verification
 
 ---
@@ -55,7 +55,7 @@ Before deploying to MCP Apps hosts, verify:
 
 ### Testing
 - [ ] `pnpm run test` passes
-- [ ] `pnpm run ui-test --widget <name>` shows correct rendering
+- [ ] `pnpm run ui-test --tool show_<name>` shows correct rendering
 - [ ] `pnpm run test:browser` passes
 - [ ] Tested in app tester with real prompts
 
