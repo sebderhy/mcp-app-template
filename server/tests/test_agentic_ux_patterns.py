@@ -356,17 +356,38 @@ class TestContextSeparation:
 
     @pytest.mark.asyncio
     async def test_structured_content_is_semantic(self):
-        """structuredContent should contain semantic data the model can reason about."""
+        """structuredContent should contain semantic data the model can reason about.
+
+        TODO: Improve this test using an LLM. An LLM could better evaluate whether
+        field names are meaningful and semantic. The current heuristics (checking for
+        anti-patterns) are a rough approximation - they catch obviously bad names but
+        can't truly assess if names like 'west', 'templates', or 'imageData' are
+        appropriate for their domain context.
+        """
         from main import handle_call_tool, WIDGETS
 
-        # Fields that suggest semantic, model-useful data
-        semantic_indicators = [
-            'id', 'name', 'title', 'description', 'summary', 'items', 'results',
-            'count', 'total', 'status', 'type', 'category', 'value', 'price',
-            'rating', 'location', 'date', 'time', 'url', 'label', 'message'
-        ]
+        def is_bad_field_name(name: str) -> str | None:
+            """Check if a field name is clearly non-semantic. Returns reason if bad, None if ok."""
+            # Single character names are bad
+            if len(name) <= 1:
+                return f"'{name}' - single character name"
 
-        widgets_with_semantic_data = 0
+            # Generic numbered names are bad (data1, field2, value3, etc.)
+            if re.match(r'^(data|field|value|item|var|tmp|temp)\d*$', name.lower()):
+                return f"'{name}' - generic numbered name"
+
+            # All uppercase short abbreviations are often cryptic (but allow common ones)
+            common_abbreviations = {'id', 'url', 'uri', 'api', 'cpu', 'gpu', 'ram', 'ip', 'os'}
+            if name.isupper() and len(name) <= 4 and name.lower() not in common_abbreviations:
+                return f"'{name}' - cryptic abbreviation"
+
+            # Single repeated characters are bad
+            if len(set(name.lower())) == 1:
+                return f"'{name}' - meaningless repeated character"
+
+            return None  # Name seems ok
+
+        widgets_with_issues = []
 
         for widget in WIDGETS:
             request = types.CallToolRequest(
@@ -379,23 +400,26 @@ class TestContextSeparation:
             result = await handle_call_tool(request)
 
             if result.root.structuredContent:
-                keys = [k.lower() for k in result.root.structuredContent.keys()]
-                has_semantic = any(
-                    any(ind in key for ind in semantic_indicators)
-                    for key in keys
-                )
-                if has_semantic:
-                    widgets_with_semantic_data += 1
+                keys = list(result.root.structuredContent.keys())
+                bad_names = []
+                for key in keys:
+                    reason = is_bad_field_name(key)
+                    if reason:
+                        bad_names.append(reason)
 
-        score = widgets_with_semantic_data / len(WIDGETS) if WIDGETS else 1.0
+                if bad_names:
+                    widgets_with_issues.append(f"'{widget.identifier}': {', '.join(bad_names)}")
+
+        widgets_passing = len(WIDGETS) - len(widgets_with_issues)
+        score = widgets_passing / len(WIDGETS) if WIDGETS else 1.0
         _report.add_result(GradeResult(
             category="2. Context Separation",
             check_name="Semantic structuredContent",
-            passed=score >= 0.8,
+            passed=len(widgets_with_issues) == 0,
             score=score,
-            details=f"{widgets_with_semantic_data}/{len(WIDGETS)} widgets have semantic field names",
+            details="\n".join(widgets_with_issues) if widgets_with_issues else f"All {len(WIDGETS)} widgets use descriptive field names",
             weight=1.2,
-            fix_hint="Use semantic field names like 'items', 'title', 'status' that the model can understand and reference.",
+            fix_hint="Avoid single-character names, generic names (data1, field2), and cryptic abbreviations. Use descriptive field names.",
         ))
 
 
@@ -491,14 +515,15 @@ class TestInteractiveStateSync:
                 continue
 
             # Check if state includes identifiers
-            has_id_in_state = any(p in content for p in [
-                'selectedId', 'selected_id', 'activeId', 'active_id',
-                'currentId', 'current_id', 'focusedId', 'focused_id',
-                'selectedItem', 'activeItem',
-                # Additional common identifier patterns
-                'viewedId', 'viewed_id', 'currentListId', 'current_list_id',
-                'selectedPlanetName', 'selectedTemplateId', 'likedIds',
-            ])
+            # Look for common patterns: *Id, *_id, *Item, *Name (for selection context)
+            has_id_in_state = (
+                # Camel case patterns ending in Id
+                re.search(r'(selected|active|current|focused|viewed|liked)\w*Id', content) or
+                # Snake case patterns ending in _id
+                re.search(r'(selected|active|current|focused|viewed|liked)\w*_id', content) or
+                # Patterns with Item or Name suffix
+                re.search(r'(selected|active|current)\w*(Item|Name)', content)
+            )
 
             if has_id_in_state:
                 good_patterns.append(widget_name)
