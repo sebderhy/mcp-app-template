@@ -410,6 +410,18 @@ BASE_URL=https://your-domain.com/assets pnpm run server
 
 Deploy the Python server to any platform (Fly.io, Render, Railway, Cloud Run, etc.). Requirements: HTTPS, `/mcp` endpoint, SSE streaming support.
 
+## Roadmap
+
+Planned features and improvements:
+
+- **Authentication support** - Apps that require user login and secure sessions
+- **Agentic commerce** - Enable purchases and transactions within AI conversations
+- **LLM-based test evaluation** - Use LLMs to determine test pass/fail for complex verifications
+- **Interactive browser tests** - Browser tests that simulate user interactions with widgets
+- **Multi-step agentic workflows** - Support agent loops chaining multiple tool calls
+
+Have ideas? Open an issue or PR.
+
 ## Resources
 
 - [MCP Apps Protocol](https://modelcontextprotocol.io/docs/extensions/apps) - Official MCP Apps specification (see also local copies: `docs/mcp-apps-docs.md`, `docs/mcp-apps-specs.mdx`)
