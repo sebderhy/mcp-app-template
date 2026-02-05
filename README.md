@@ -1,5 +1,7 @@
 # MCP App Template
 
+[![CI](https://github.com/sebderhy/mcp-app-template/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebderhy/mcp-app-template/actions/workflows/ci.yml)
+
 **The AI-agent-first MCP App template.** Built so coding agents (Claude Code, Codex, Cursor, ...) can modify, test, and go as far as possible autonomously - without human in the loop.
 
 Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, and many more to come.
