@@ -434,15 +434,26 @@ class TestInteractiveStateSync:
     should know what they're looking at. Otherwise, follow-up questions like
     "tell me more about this one" will fail.
 
-    Use window.openai.setWidgetState(state) to sync UI state to the model.
+    Use useWidgetState() hook to sync UI state to the model.
 
-    What this tests:
-    - Do interactive widgets (with click handlers) use setWidgetState?
-    - Is selection state being communicated to the model?
+    What we WANT to check:
+    - If a user can select/click items in a widget, does the widget sync that
+      selection to the model so the model knows what the user is looking at?
+
+    What we ACTUALLY check (limited by heuristics):
+    - Anti-pattern: Widget renders a list with onClick but never uses useWidgetState
+    - Pattern matching for identifier fields in widgets that do use useWidgetState
     """
 
     def test_interactive_widgets_use_widget_state(self):
-        """Widgets with selection/navigation state should use setWidgetState."""
+        """Widgets with item click handlers should use useWidgetState to sync selection.
+
+        TODO: Improve this test using an LLM. The current heuristic checks if a widget
+        has onClick handlers on mapped items (.map + onClick) without useWidgetState.
+        An LLM could better understand whether the clicks are for selection (needs sync)
+        vs navigation/actions (may not need sync), and whether the widget's interaction
+        model actually requires the model to know what's selected.
+        """
         tsx_files = _get_widget_tsx_files()
 
         violations = []
@@ -452,42 +463,26 @@ class TestInteractiveStateSync:
             content = tsx_file.read_text(encoding="utf8")
             widget_name = tsx_file.parent.name
 
-            # Look for selection state patterns (user selecting from multiple items)
-            # These are the interactions where the model needs to know what user is looking at
-            has_selection_state = any(p in content for p in [
-                'selectedId', 'selectedIndex', 'selectedItem', 'selected_id',
-                'activeId', 'activeIndex', 'activeItem', 'active_id',
-                'currentId', 'currentIndex', 'currentItem', 'current_id',
-                'setSelected', 'setActive', 'setCurrent',
-            ])
+            # Anti-pattern detection: widget has list rendering with click handlers
+            # but doesn't use useWidgetState at all
+            has_mapped_items = '.map(' in content
+            has_onclick = 'onClick' in content
+            uses_widget_state = 'useWidgetState' in content
 
-            # Also check for click handlers on list items (not just navigation buttons)
-            # Pattern: onClick on something with item/id context
-            has_item_click = (
-                'onClick={() =>' in content and
-                any(p in content for p in ['item.id', 'item.name', 'selectedId', 'activeId'])
-            )
-
-            is_selection_interactive = has_selection_state or has_item_click
-
-            if is_selection_interactive:
+            # Only flag if widget renders lists with click handlers but no state sync
+            if has_mapped_items and has_onclick:
                 checked_count += 1
-                # Check if widget imports and uses useWidgetState
-                uses_widget_state = 'useWidgetState' in content
-                # Also check for setWidgetState directly
-                uses_set_widget_state = 'setWidgetState' in content
-
-                if not (uses_widget_state or uses_set_widget_state):
+                if not uses_widget_state:
                     violations.append(
-                        f"'{widget_name}' - has selection state but doesn't sync to model"
+                        f"'{widget_name}' - has clickable list items but doesn't use useWidgetState"
                     )
 
         if checked_count == 0:
             score = 1.0
-            details = "No interactive widgets found"
+            details = "No widgets with clickable list items found"
         else:
             score = 1.0 - (len(violations) / checked_count)
-            details = "\n".join(violations) if violations else f"All {checked_count} interactive widgets sync state"
+            details = "\n".join(violations) if violations else f"All {checked_count} interactive widgets use useWidgetState"
 
         _report.add_result(GradeResult(
             category="3. Interactive State Sync",
@@ -496,11 +491,18 @@ class TestInteractiveStateSync:
             score=max(0, score),
             details=details,
             weight=1.5,
-            fix_hint="When user selects an item, sync to model: const [state, setState] = useWidgetState({ selectedId: null }); then setState({ selectedId: item.id })",
+            fix_hint="Add useWidgetState to sync selection: const [state, setState] = useWidgetState({ selectedId: null })",
         ))
 
     def test_selection_state_includes_identifier(self):
-        """Widget state should include selected item ID for model reference."""
+        """Widget state should include identifiers so the model knows what's selected.
+
+        TODO: Improve this test using an LLM. The current implementation uses regex
+        patterns to find identifier-like field names (selectedId, activeItem, etc).
+        An LLM could actually read the useWidgetState calls and assess whether the
+        state structure provides enough context for the model to understand what
+        the user has selected, regardless of naming conventions.
+        """
         tsx_files = _get_widget_tsx_files()
 
         good_patterns = []
@@ -514,15 +516,15 @@ class TestInteractiveStateSync:
             if 'useWidgetState' not in content:
                 continue
 
-            # Check if state includes identifiers
-            # Look for common patterns: *Id, *_id, *Item, *Name (for selection context)
+            # Check if state includes identifiers using flexible regex patterns
+            # This catches: selectedId, selectedStatId, activeItemId, currentListId, etc.
             has_id_in_state = (
                 # Camel case patterns ending in Id
                 re.search(r'(selected|active|current|focused|viewed|liked)\w*Id', content) or
                 # Snake case patterns ending in _id
                 re.search(r'(selected|active|current|focused|viewed|liked)\w*_id', content) or
-                # Patterns with Item or Name suffix
-                re.search(r'(selected|active|current)\w*(Item|Name)', content)
+                # Patterns with Item or Name suffix (for storing selected item details)
+                re.search(r'(selected|active|current)\w*(Item|Name|Title)', content)
             )
 
             if has_id_in_state:

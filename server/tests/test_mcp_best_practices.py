@@ -307,7 +307,13 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_use_cases(self):
-        """Widget tool descriptions should include 'Use this tool when' section."""
+        """Widget tool descriptions should include 'Use this tool when' section.
+
+        TODO: Improve with LLM. Current implementation uses keyword matching for
+        phrases like 'use this tool when'. An LLM could recognize semantic equivalents
+        like 'Perfect for scenarios where...', 'Best used when...', 'Ideal for...'
+        that convey use cases without matching these exact patterns.
+        """
         tools = await _get_widget_tools()
         violations = []
         patterns = ['use this tool when', 'use this when', 'use when']
@@ -333,7 +339,12 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_args_section(self):
-        """Widget tool descriptions should document arguments."""
+        """Widget tool descriptions should document arguments.
+
+        TODO: Improve with LLM. Current implementation matches keywords like 'args:',
+        'parameters:'. An LLM could recognize alternative documentation formats like
+        'Input fields:', 'Accepts:', 'Takes the following:' that also document args.
+        """
         tools = await _get_widget_tools()
         violations = []
         patterns = ['args:', 'arguments:', 'parameters:']
@@ -359,7 +370,12 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_returns_section(self):
-        """Widget tool descriptions should document return values."""
+        """Widget tool descriptions should document return values.
+
+        TODO: Improve with LLM. Current implementation matches keywords like 'returns:',
+        'output:'. An LLM could recognize synonyms like 'Yields:', 'Produces:', 'Result:',
+        'Outputs the following:' that also document return values.
+        """
         tools = await _get_widget_tools()
         violations = []
         patterns = ['returns:', 'return value:', 'output:']
@@ -385,7 +401,12 @@ class TestToolDescriptions:
 
     @pytest.mark.asyncio
     async def test_descriptions_include_example(self):
-        """Widget tool descriptions should include at least one example."""
+        """Widget tool descriptions should include at least one example.
+
+        TODO: Improve with LLM. Current implementation matches keywords like 'example:',
+        'e.g.'. An LLM could recognize examples shown as 'Here's how:', 'Sample usage:',
+        'Try:', 'Demo:', or even inline code without explicit markers.
+        """
         tools = await _get_widget_tools()
         violations = []
         patterns = ['example:', 'example usage:', 'e.g.', 'for example']
@@ -549,7 +570,14 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_error_messages_are_actionable(self):
-        """Error messages should suggest what to do next."""
+        """Error messages should suggest what to do next.
+
+        TODO: Improve with LLM. Current implementation checks for keywords like 'valid',
+        'try', 'should'. An LLM could assess whether an error message is truly actionable
+        by understanding if it explains the problem and guides toward a solution, regardless
+        of specific wording. E.g., 'Expected integer between 1-100' is actionable without
+        containing 'try' or 'should'.
+        """
         from main import handle_call_tool, WIDGETS
 
         violations = []
@@ -779,7 +807,14 @@ class TestAntiPatterns:
 
     @pytest.mark.asyncio
     async def test_no_vague_descriptions(self):
-        """Tool descriptions should not be vague (Anti-Pattern 3)."""
+        """Tool descriptions should not be vague (Anti-Pattern 3).
+
+        TODO: Improve with LLM. Current implementation only catches a few exact vague
+        patterns like 'Process data' or 'Handle input'. An LLM could assess vagueness
+        semantically - recognizing that 'Manages information according to rules' is
+        vague while 'Converts CSV files to JSON format' is specific, regardless of
+        whether they match predefined regex patterns.
+        """
         from main import list_tools
 
         tools = await list_tools()

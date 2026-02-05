@@ -149,7 +149,13 @@ class TestValueProposition:
 
     @pytest.mark.asyncio
     async def test_tools_document_value_type(self):
-        """Tool descriptions should indicate what value they provide (know/do/show)."""
+        """Tool descriptions should indicate what value they provide (know/do/show).
+
+        TODO: Improve with LLM. Current implementation uses keyword lists for each value
+        type (know: 'fetch', 'get'; do: 'create', 'delete'; show: 'display', 'render').
+        An LLM could understand that a tool 'Generates an interactive map of nearby
+        restaurants' provides 'Show' value without containing keywords like 'display'.
+        """
         from main import list_tools
 
         tools = await list_tools()
@@ -560,7 +566,14 @@ class TestFirstTurnExperience:
 
     @pytest.mark.asyncio
     async def test_descriptions_explain_capability(self):
-        """Tool descriptions should explain what the tool does in one line (cold start)."""
+        """Tool descriptions should explain what the tool does in one line (cold start).
+
+        TODO: Improve with LLM. Current implementation only checks length (20-200 chars).
+        Length doesn't equal clarity - a 50-char description could be vague ('Does
+        important data processing') while a 25-char one could be clear ('Finds nearby
+        restaurants'). An LLM could assess whether the first line actually explains
+        the capability clearly.
+        """
         from main import list_tools
 
         tools = await list_tools()

@@ -812,6 +812,11 @@ class TestCrossToolConsistency:
 
         WHY: Consistent naming enables the model to reliably chain tools
         and format outputs without field-mapping logic.
+
+        TODO: Improve with LLM. Current implementation uses a hardcoded equivalence
+        list and a 30% threshold for 'unusual' names. An LLM could better judge when
+        domain-specific names (like 'restaurant_rating' vs 'rating') are appropriate,
+        and whether naming variations hurt or help model understanding in context.
         """
         from main import handle_call_tool, WIDGETS
 
