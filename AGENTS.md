@@ -88,6 +88,7 @@ Your app is production-ready.
   - `server/tests/mcp_best_practices_report.txt`
   - `server/tests/chatgpt_app_guidelines_report.txt`
   - `server/tests/output_quality_report.txt`
+  - `server/tests/agentic_ux_patterns_report.txt`
 
 ### Ask First
 - Adding new npm dependencies (especially heavy ones like `three`, `chart.js`)
@@ -218,6 +219,7 @@ Then: `pnpm run build && pnpm run test && pnpm run ui-test --tool show_my_widget
 | `docs/widget-development.md` | Hook APIs (`useWidgetProps`, `useTheme`, `useWidgetState`) |
 | `docs/mcp-development-guidelines.md` | Tool naming, descriptions, error handling |
 | `docs/what-makes-a-great-chatgpt-app.md` | Know/Do/Show framework, UX patterns |
+| `docs/15-lessons-building-chatgpt-apps.md` | Context asymmetry, front-loading, interactive state sync |
 | `docs/mcp-apps-docs.md` | MCP Apps protocol overview |
 | `docs/mcp-apps-specs.mdx` | Full protocol specification (SEP-1865) |
 
