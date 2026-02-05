@@ -32,7 +32,8 @@ type ToolOutput = {
 
 type WidgetState = {
   likedIds: string[];
-  viewedIndex: number | null;
+  viewedId: string | null;
+  viewedTitle: string | null;
 };
 
 const defaultProps: ToolOutput = {
@@ -95,15 +96,21 @@ export default function App() {
   const displayMode = useDisplayMode() ?? "inline";
   const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
     likedIds: [],
-    viewedIndex: null,
+    viewedId: null,
+    viewedTitle: null,
   });
 
   const isDark = theme === "dark";
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const openLightbox = (index: number) => {
+    const image = props.images[index];
     setLightboxIndex(index);
-    setWidgetState((prev) => ({ ...prev, viewedIndex: index }));
+    setWidgetState((prev) => ({
+      ...prev,
+      viewedId: image?.id ?? null,
+      viewedTitle: image?.title ?? null,
+    }));
   };
 
   const closeLightbox = () => setLightboxIndex(null);

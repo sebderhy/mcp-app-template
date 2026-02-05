@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import mcp.types as types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -39,10 +39,16 @@ Example:
 )
 
 
+CategoryType = Literal["nature", "architecture", "portraits", "travel"]
+
+
 class GalleryInput(BaseModel):
     """Input for gallery widget."""
     title: str = Field(default="Photo Gallery", description="Gallery title")
-    category: str = Field(default="nature", description="Category of images")
+    category: CategoryType = Field(
+        default="nature",
+        description="Category of images. Options: nature, architecture, portraits, travel"
+    )
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 

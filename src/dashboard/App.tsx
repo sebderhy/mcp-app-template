@@ -24,6 +24,7 @@ import {
 import { Badge } from "@openai/apps-sdk-ui/components/Badge";
 import { Button } from "@openai/apps-sdk-ui/components/Button";
 import { useWidgetProps } from "../use-widget-props";
+import { useWidgetState } from "../use-widget-state";
 import { useTheme } from "../use-theme";
 import { useDisplayMode } from "../use-display-mode";
 
@@ -50,6 +51,11 @@ type ToolOutput = {
   period?: string;
   stats: StatCard[];
   activities?: ActivityItem[];
+};
+
+type WidgetState = {
+  selectedStatId: string | null;
+  selectedStatLabel: string | null;
 };
 
 const iconMap = {
@@ -131,14 +137,27 @@ const defaultProps: ToolOutput = {
   ],
 };
 
-function StatCardComponent({ stat, isDark }: { stat: StatCard; isDark: boolean }) {
+function StatCardComponent({
+  stat,
+  isDark,
+  isSelected,
+  onClick,
+}: {
+  stat: StatCard;
+  isDark: boolean;
+  isSelected?: boolean;
+  onClick?: () => void;
+}) {
   const Icon = stat.icon ? iconMap[stat.icon] : Activity;
   const isPositive = (stat.change ?? 0) >= 0;
 
   return (
     <div
-      className={`p-4 rounded-xl border ${
-        isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+      onClick={onClick}
+      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+        isSelected ? "ring-2 ring-blue-500 ring-offset-2" : ""
+      } ${
+        isDark ? "bg-gray-800 border-gray-700 hover:bg-gray-700" : "bg-white border-gray-200 hover:bg-gray-50"
       }`}
     >
       <div className="flex items-center justify-between mb-3">
@@ -213,6 +232,14 @@ export default function App() {
   const theme = useTheme() ?? "light";
   const displayMode = useDisplayMode() ?? "inline";
   const isDark = theme === "dark";
+  const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
+    selectedStatId: null,
+    selectedStatLabel: null,
+  });
+
+  const handleStatClick = (stat: StatCard) => {
+    setWidgetState({ selectedStatId: stat.id, selectedStatLabel: stat.label });
+  };
 
   const handleRequestFullscreen = () => {
     if (window.openai?.requestDisplayMode) {
@@ -260,7 +287,13 @@ export default function App() {
       <div className="p-4">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {props.stats.map((stat) => (
-            <StatCardComponent key={stat.id} stat={stat} isDark={isDark} />
+            <StatCardComponent
+              key={stat.id}
+              stat={stat}
+              isDark={isDark}
+              isSelected={widgetState?.selectedStatId === stat.id}
+              onClick={() => handleStatClick(stat)}
+            />
           ))}
         </div>
       </div>

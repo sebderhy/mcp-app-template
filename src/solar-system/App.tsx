@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { AnimatePresence, motion } from "framer-motion";
 import { EffectComposer, Bloom, DepthOfField } from "@react-three/postprocessing";
 import { useWidgetProps } from "../use-widget-props";
+import { useWidgetState } from "../use-widget-state";
 import { useDisplayMode } from "../use-display-mode";
 import { Maximize2 } from "lucide-react";
 
@@ -30,6 +31,10 @@ type PlanetData = {
 type ToolOutput = {
   planet_name?: string;
   title?: string;
+};
+
+type WidgetState = {
+  selectedPlanetName: string | null;
 };
 
 const defaultProps: ToolOutput = {
@@ -351,6 +356,9 @@ function SolarSystem() {
   const [isOrbiting, setIsOrbiting] = useState(true);
   const [targetPlanetPosition, setTargetPlanetPosition] = useState<THREE.Vector3 | "initial" | null>(null);
   const props = useWidgetProps<ToolOutput>(defaultProps);
+  const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
+    selectedPlanetName: null,
+  });
 
   const currentPlanet = planets.find((planet) => planet.name === props.planet_name) ?? null;
 
@@ -383,6 +391,7 @@ function SolarSystem() {
   const handlePlanetClick = (planet: PlanetData, position: THREE.Vector3) => {
     setIsOrbiting(false);
     setSelectedPlanet(planet);
+    setWidgetState({ selectedPlanetName: planet.name });
     setTargetPlanetPosition(position);
     setFocusTarget(position);
   };
@@ -390,6 +399,7 @@ function SolarSystem() {
   const handlePointerMissed = () => {
     setIsOrbiting(true);
     setSelectedPlanet(null);
+    setWidgetState({ selectedPlanetName: null });
     setTargetPlanetPosition("initial");
     setFocusTarget(new THREE.Vector3(0, 0, 0));
   };

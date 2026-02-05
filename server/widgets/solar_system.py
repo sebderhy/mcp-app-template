@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 import mcp.types as types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -38,9 +38,15 @@ Example:
 )
 
 
+PlanetName = Literal["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"]
+
+
 class SolarSystemInput(BaseModel):
     """Input for solar system widget."""
-    planet_name: Optional[str] = Field(default=None, description="Planet to focus on (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune)")
+    planet_name: Optional[PlanetName] = Field(
+        default=None,
+        description="Planet to focus on. Options: Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune"
+    )
     title: str = Field(default="Solar System Explorer", description="Widget title")
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 

@@ -11,6 +11,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Star, MapPin } from "lucide-react";
 import { useWidgetProps } from "../use-widget-props";
+import { useWidgetState } from "../use-widget-state";
 import { useTheme } from "../use-theme";
 
 type CarouselItem = {
@@ -27,6 +28,11 @@ type CarouselItem = {
 type ToolOutput = {
   title?: string;
   items: CarouselItem[];
+};
+
+type WidgetState = {
+  selectedId: string | null;
+  selectedTitle: string | null;
 };
 
 const defaultProps: ToolOutput = {
@@ -85,9 +91,17 @@ const defaultProps: ToolOutput = {
 export default function App() {
   const props = useWidgetProps<ToolOutput>(defaultProps);
   const theme = useTheme() ?? "light";
+  const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
+    selectedId: null,
+    selectedTitle: null,
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const handleSelectItem = (item: CarouselItem) => {
+    setWidgetState({ selectedId: item.id, selectedTitle: item.title });
+  };
 
   const updateScrollButtons = () => {
     if (!scrollRef.current) return;
@@ -136,7 +150,12 @@ export default function App() {
           {props.items.map((item) => (
             <article
               key={item.id}
+              onClick={() => handleSelectItem(item)}
               className={`flex-shrink-0 w-64 rounded-2xl overflow-hidden border transition-shadow hover:shadow-lg cursor-pointer ${
+                widgetState?.selectedId === item.id
+                  ? "ring-2 ring-blue-500 ring-offset-2"
+                  : ""
+              } ${
                 isDark
                   ? "bg-gray-800 border-gray-700"
                   : "bg-white border-gray-200"

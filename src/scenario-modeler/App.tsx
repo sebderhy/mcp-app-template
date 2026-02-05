@@ -5,8 +5,9 @@
  * Ported from modelcontextprotocol/ext-apps scenario-modeler-server.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useWidgetProps } from "../use-widget-props";
+import { useWidgetState } from "../use-widget-state";
 import { SliderRow } from "./components/SliderRow";
 import { MetricCard } from "./components/MetricCard";
 import { ProjectionChart } from "./components/ProjectionChart";
@@ -26,6 +27,11 @@ import "./scenario-modeler.css";
 interface ToolOutput {
   templates: ScenarioTemplate[];
   defaultInputs: ScenarioInputs;
+}
+
+interface ScenarioWidgetState {
+  selectedTemplateId: string | null;
+  selectedTemplateName: string | null;
 }
 
 // Local defaults for immediate render (should match server's DEFAULT_INPUTS)
@@ -66,6 +72,10 @@ function ScenarioModelerInner({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     null,
   );
+  const [widgetState, setWidgetState] = useWidgetState<ScenarioWidgetState>({
+    selectedTemplateId: null,
+    selectedTemplateName: null,
+  });
 
   // Derived state - recalculates when inputs change
   const projections = useMemo(() => calculateProjections(inputs), [inputs]);
@@ -91,14 +101,20 @@ function ScenarioModelerInner({
   const handleReset = useCallback(() => {
     setInputs(defaultInputs);
     setSelectedTemplateId(null);
-  }, [defaultInputs]);
+    setWidgetState({ selectedTemplateId: null, selectedTemplateName: null });
+  }, [defaultInputs, setWidgetState]);
 
   const handleTemplateSelect = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const value = e.target.value;
       setSelectedTemplateId(value || null);
+      const template = templates.find((t) => t.id === value);
+      setWidgetState({
+        selectedTemplateId: value || null,
+        selectedTemplateName: template?.name || null,
+      });
     },
-    [],
+    [templates, setWidgetState],
   );
 
   const handleLoadTemplate = useCallback(() => {

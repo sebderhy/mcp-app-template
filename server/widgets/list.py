@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import mcp.types as types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -41,11 +41,17 @@ Example:
 )
 
 
+CategoryType = Literal["restaurants", "cafes", "shops", "attractions"]
+
+
 class ListInput(BaseModel):
     """Input for list widget."""
     title: str = Field(default="Top Picks", description="List title")
     subtitle: str = Field(default="Curated recommendations", description="List subtitle")
-    category: str = Field(default="restaurants", description="Category of items")
+    category: CategoryType = Field(
+        default="restaurants",
+        description="Category of items. Options: restaurants, cafes, shops, attractions"
+    )
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 

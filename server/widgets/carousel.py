@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import mcp.types as types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -40,10 +40,16 @@ Example:
 )
 
 
+CategoryType = Literal["restaurants", "hotels", "products", "attractions"]
+
+
 class CarouselInput(BaseModel):
     """Input for carousel widget."""
     title: str = Field(default="Recommendations", description="Carousel title")
-    category: str = Field(default="restaurants", description="Category of items to show")
+    category: CategoryType = Field(
+        default="restaurants",
+        description="Category of items to show. Options: restaurants, hotels, products, attractions"
+    )
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 

@@ -42,6 +42,8 @@ type ToolOutput = {
 
 type WidgetState = {
   lists: TodoList[];
+  currentListId: string | null;
+  currentListTitle: string | null;
 };
 
 const defaultProps: ToolOutput = {
@@ -703,8 +705,11 @@ export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const props = useWidgetProps<ToolOutput>(defaultProps);
 
+  const initialOpenList = props.lists.find((l) => l.isCurrentlyOpen);
   const [widgetState, setWidgetState] = useWidgetState<WidgetState>({
     lists: props.lists,
+    currentListId: initialOpenList?.id ?? null,
+    currentListTitle: initialOpenList?.title ?? null,
   });
 
   const data = widgetState ?? { lists: props.lists };
@@ -736,8 +741,12 @@ export default function App() {
   const currentList = currentTodoList != null ? todoLists[currentTodoList] : null;
   const currentItems = currentList ? currentList.todos : [];
 
-  const updateData = (newLists: TodoList[]) => {
-    setWidgetState({ lists: newLists });
+  const updateData = (newLists: TodoList[], listId?: string | null, listTitle?: string | null) => {
+    setWidgetState((prev) => ({
+      lists: newLists,
+      currentListId: listId !== undefined ? listId : (prev?.currentListId ?? null),
+      currentListTitle: listTitle !== undefined ? listTitle : (prev?.currentListTitle ?? null),
+    }));
   };
 
   const addList = () => {
@@ -764,8 +773,9 @@ export default function App() {
   const openList = (r: React.RefObject<HTMLDivElement> | null, index: number) => {
     setCurrentTodoListRef(r);
     setCurrentTodoList(index);
+    const targetList = data.lists[index];
     const lists = data.lists.map((l, i) => ({ ...l, isCurrentlyOpen: i === index }));
-    updateData(lists);
+    updateData(lists, targetList?.id ?? null, targetList?.title ?? null);
   };
 
   const updateListById = (listId: string, val: Partial<TodoList>) => {
@@ -836,7 +846,7 @@ export default function App() {
                     setCurrentTodoList(null);
                     setCurrentTodoListRef(null);
                     const lists = data.lists.map((l) => ({ ...l, isCurrentlyOpen: false }));
-                    updateData(lists);
+                    updateData(lists, null, null);
                   }}
                   className="cursor-pointer"
                 />

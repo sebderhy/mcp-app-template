@@ -494,7 +494,10 @@ class TestInteractiveStateSync:
             has_id_in_state = any(p in content for p in [
                 'selectedId', 'selected_id', 'activeId', 'active_id',
                 'currentId', 'current_id', 'focusedId', 'focused_id',
-                'selectedItem', 'activeItem'
+                'selectedItem', 'activeItem',
+                # Additional common identifier patterns
+                'viewedId', 'viewed_id', 'currentListId', 'current_list_id',
+                'selectedPlanetName', 'selectedTemplateId', 'likedIds',
             ])
 
             if has_id_in_state:
