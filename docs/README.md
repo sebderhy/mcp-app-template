@@ -12,7 +12,6 @@ For the step-by-step workflow, see the main [CLAUDE.md](../CLAUDE.md) (or `AGENT
 |----------|----------------|
 | [widget-development.md](./widget-development.md) | Project-specific hooks (`useWidgetProps`, `useTheme`, `useWidgetState`), patterns |
 | [mcp-development-guidelines.md](./mcp-development-guidelines.md) | Tool naming, descriptions, error handling, security |
-| [what-makes-a-great-chatgpt-app.md](./what-makes-a-great-chatgpt-app.md) | Know/Do/Show framework, capability design (OpenAI guidance) |
 | [mcp-apps-docs.md](./mcp-apps-docs.md) | MCP Apps overview, getting started, examples |
 | [mcp-apps-specs.mdx](./mcp-apps-specs.mdx) | MCP Apps protocol specification (SEP-1865) - message formats, lifecycle, security |
 | [openai-apps-sdk-llms-full.txt](./openai-apps-sdk-llms-full.txt) | OpenAI Apps SDK documentation reference |
