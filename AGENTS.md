@@ -218,8 +218,8 @@ Then: `pnpm run build && pnpm run test && pnpm run ui-test --tool show_my_widget
 |----------|--------------|
 | `docs/widget-development.md` | Hook APIs (`useWidgetProps`, `useTheme`, `useWidgetState`) |
 | `docs/mcp-development-guidelines.md` | Tool naming, descriptions, error handling |
-| `worthreading/what-makes-a-great-chatgpt-app.md` | Know/Do/Show framework, UX patterns |
-| `worthreading/15-lessons-building-chatgpt-apps.md` | Context asymmetry, front-loading, interactive state sync |
+| `docs/what-makes-a-great-chatgpt-app.md` | Know/Do/Show framework, UX patterns |
+| `docs/15-lessons-building-chatgpt-apps.md` | Context asymmetry, front-loading, interactive state sync |
 | `docs/mcp-apps-docs.md` | MCP Apps protocol overview |
 | `docs/mcp-apps-specs.mdx` | Full protocol specification (SEP-1865) |
 

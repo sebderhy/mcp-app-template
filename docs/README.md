@@ -15,6 +15,8 @@ For the step-by-step workflow, see the main [CLAUDE.md](../CLAUDE.md) (or `AGENT
 | [mcp-apps-docs.md](./mcp-apps-docs.md) | MCP Apps overview, getting started, examples |
 | [mcp-apps-specs.mdx](./mcp-apps-specs.mdx) | MCP Apps protocol specification (SEP-1865) - message formats, lifecycle, security |
 | [openai-apps-sdk-llms-full.txt](./openai-apps-sdk-llms-full.txt) | OpenAI Apps SDK documentation reference |
+| [what-makes-a-great-chatgpt-app.md](./what-makes-a-great-chatgpt-app.md) | Know/Do/Show framework, UX patterns (from OpenAI) |
+| [15-lessons-building-chatgpt-apps.md](./15-lessons-building-chatgpt-apps.md) | Context asymmetry, front-loading, agentic UX patterns (from Alpic) |
 
 ---
 

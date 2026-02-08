@@ -2,7 +2,7 @@
 Agentic UX Patterns Grading Tests.
 
 These tests evaluate widgets against patterns from the "15 Lessons Learned
-Building ChatGPT Apps" blog post (worthreading/15-lessons-building-chatgpt-apps.md).
+Building ChatGPT Apps" blog post (docs/15-lessons-building-chatgpt-apps.md).
 
 The key insight is the "three body problem": ChatGPT Apps have three actors
 (user, widget, model) with different information needs. Good apps explicitly
@@ -99,7 +99,7 @@ class AgenticUXReport:
             "=" * 60,
             "",
             "Based on: 15 Lessons Learned Building ChatGPT Apps",
-            "(worthreading/15-lessons-building-chatgpt-apps.md)",
+            "(docs/15-lessons-building-chatgpt-apps.md)",
             "",
         ]
 

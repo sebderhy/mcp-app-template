@@ -338,5 +338,5 @@ EXTERNAL_CONNECT_DOMAINS: List[str] = [
 
 ## Further Reading
 
-- [worthreading/15-lessons-building-chatgpt-apps.md](../worthreading/15-lessons-building-chatgpt-apps.md) - Deep dive on context asymmetry, front-loading, and agentic UX patterns
-- [worthreading/what-makes-a-great-chatgpt-app.md](../worthreading/what-makes-a-great-chatgpt-app.md) - Know/Do/Show framework from OpenAI
+- [15-lessons-building-chatgpt-apps.md](./15-lessons-building-chatgpt-apps.md) - Deep dive on context asymmetry, front-loading, and agentic UX patterns
+- [what-makes-a-great-chatgpt-app.md](./what-makes-a-great-chatgpt-app.md) - Know/Do/Show framework from OpenAI
