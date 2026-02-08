@@ -9,7 +9,7 @@ Works with any MCP Apps host: **Claude**, **ChatGPT**, **VS Code**, **Goose**, a
 ## What are MCP Apps?
 
 ![MCP Apps - Build once, run on ChatGPT, Claude, Gemini & more](./images/infographic_mcp_apps.png)
-*credit: image generated using [Nano Banana](https://ai.google.dev/gemini-api/docs/image-generation)*
+*credit: image generated using [Nano Banana](https://ai.google.dev/gemini-api/docs/image-generation) through [Ormind](https://ormind.ai)*
 
 [MCP Apps](https://modelcontextprotocol.io/docs/extensions/apps) are an extension to the [Model Context Protocol](https://modelcontextprotocol.io/) that let MCP servers return **interactive UIs** -- React widgets rendered directly inside AI hosts like ChatGPT, Claude, VS Code, and so on... Instead of tools returning plain text, they return rich, interactive experiences displayed in sandboxed iframes within the conversation.
 
@@ -221,11 +221,10 @@ Try them: *"Show me the carousel"*, *"Show me the dashboard"*, etc.
 
 ## Adding Your Own Widget
 
-1. Create `src/my-widget/index.tsx` (entry point must target `my-widget-root`)
-2. Add `"my-widget"` to the `targets` array in `build-all.mts`
-3. Add a tool handler in `server/main.py` following the [MCP server guidelines](docs/mcp-development-guidelines.md)
-4. Run `pnpm run build && pnpm run test`
-5. Test in the app tester: `http://localhost:8000/assets/apptester.html`
+1. Create `src/my-widget/index.tsx` and `src/my-widget/App.tsx` (entry point must target `my-widget-root`)
+2. Create `server/widgets/my_widget.py` with `WIDGET`, `INPUT_MODEL`, and `handle()` exports (auto-discovered)
+3. Run `pnpm run build && pnpm run test`
+4. Test in the app tester: `http://localhost:8000/assets/apptester.html`
 
 When customizing this template for your own app, follow the guidelines in [`docs/mcp-development-guidelines.md`](docs/mcp-development-guidelines.md) for tool naming conventions, descriptions, and error handling best practices.
 
@@ -306,6 +305,8 @@ OVERALL SCORE: 95.5% (Grade: A)
 ```
 
 When a check fails, the report includes a `FIX:` hint explaining exactly how to resolve it - useful for AI agents improving the server.
+
+> **Current limitation:** The grading tests use heuristic checks (keyword matching, regex patterns, length thresholds) rather than LLM-based evaluation. This means some checks can produce false positives/negatives for edge cases. Upgrading to LLM-based test evaluation is on the [roadmap](#roadmap) — contributions welcome!
 
 ## Automated UI Testing (for AI Agents)
 

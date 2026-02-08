@@ -48,10 +48,16 @@ pnpm run test
 If you'd like to contribute a new widget example:
 
 1. Create a new directory in `src/` (e.g., `src/my-widget/`)
-2. Add `index.tsx` and `App.tsx` following the existing patterns
-3. Add the widget name to `build-all.mts`
-4. Add corresponding tool handlers in `server/main.py`
+2. Add `index.tsx` and `App.tsx` following the existing patterns (auto-discovered by the build)
+3. Create `server/widgets/my_widget.py` with `WIDGET`, `INPUT_MODEL`, and `handle()` exports (auto-discovered by the server)
+4. Run `pnpm run build && pnpm run test`
 5. Update the README if needed
+
+## Roadmap & Help Wanted
+
+See the [Roadmap](README.md#roadmap) in the README for planned features.
+
+One area where contributions would be especially impactful: **LLM-based test evaluation**. The automated grading tests (`server/tests/test_*.py`) currently use heuristic checks — keyword matching, regex patterns, length thresholds — which can produce false positives/negatives for edge cases. Replacing these with LLM-based evaluation would make the grading far more accurate. Look for `TODO: Improve with LLM` comments across the test files for specific opportunities.
 
 ## Questions?
 

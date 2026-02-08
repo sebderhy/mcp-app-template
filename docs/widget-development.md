@@ -199,13 +199,12 @@ function MyWidget() {
 </div>
 ```
 
-### Interactive elements with callbacks
+### Calling tools from widgets
 
 ```tsx
-function handleClick(itemId: string) {
-  // For now, widgets are read-only displays
-  // Future: window.openai.callTool() for server actions
-  console.log("Selected:", itemId);
+async function handleClick(itemId: string) {
+  const result = await window.openai.callTool("get_item_details", { id: itemId });
+  console.log("Result:", result);
 }
 ```
 

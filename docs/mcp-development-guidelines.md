@@ -516,7 +516,7 @@ Before deploying, verify:
 - [ ] Structured return types (Pydantic models)
 - [ ] Error messages are actionable (suggest what to do next)
 - [ ] Server instructions explain tool relationships and workflows
-- V ound appy path AND edge cases
+- [ ] Happy path AND edge cases
 - [ ] No hardcoded secrets (use env vars)
 - [ ] Pagination implemented for list operations
 - [ ] Progress reporting for operations > 2 seconds
