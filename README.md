@@ -43,6 +43,7 @@ Local app tester for manual testing - works instantly without API key via [Puter
 ## Demos
 ### Claude Code going autonomously from prompt to a working ChatGPT game
 https://github.com/user-attachments/assets/901ba5cd-1622-46ec-b713-717a37a20071
+
 *credit: video edited automatically via [Wizardly](https://trywizardly.com/), full video available [here](https://drive.google.com/file/d/1rXyJ5MQEZAJWU5LGQZfBo9iIzsenqcWk/view?usp=sharing)*
 
 ### Showcase of widgets within ChatGPT
